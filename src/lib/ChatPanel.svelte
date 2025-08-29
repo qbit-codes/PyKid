@@ -1,25 +1,47 @@
 <script lang="ts">
   let input = '';
-  let history: { role:'user'|'assistant', content:string }[] = [];
+  let history: { role: 'user' | 'assistant'; content: string }[] = [];
+  let sending = false;
 
   async function ask() {
     const q = input.trim();
-    if (!q) return;
-    history = [...history, { role:'user', content:q }];
+    if (!q || sending) return;
+    sending = true;
     input = '';
 
+    // Kullanıcı mesajını ayrı tut
+    const userMsg = { role: 'user' as const, content: q };
+
+    // >>> İSTEDİĞİN FETCH GÖVDESİ BURADA <<<
     const r = await fetch('/api/chat', {
       method: 'POST',
-      headers: {'content-type':'application/json'},
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         messages: [
-          { role:'system', content:'Kısa ve net yardımcı ol.' },
-          ...history
+          { role: 'system', content: 'Kısa ve net yardımcı ol.' },
+          ...history,          // önceki konuşma
+          userMsg              // o anki giriş
         ]
       })
     });
+
+    if (!r.ok) {
+      const errText = await r.text().catch(() => '');
+      history = [
+        ...history,
+        userMsg,
+        { role: 'assistant', content: `Üzgünüm, sunucu hatası (${r.status}). ${errText}` }
+      ];
+      sending = false;
+      return;
+    }
+
     const j = await r.json();
-    history = [...history, { role:'assistant', content: j.text }];
+    const aiMsg = { role: 'assistant' as const, content: j.text ?? '' };
+
+    // Ekrana yaz: önce user, sonra assistant
+    history = [...history, userMsg, aiMsg];
+    sending = false;
   }
 </script>
 
@@ -41,7 +63,12 @@
     {/each}
   </div>
   <div class="row">
-    <input placeholder="Model'e sor…" bind:value={input} on:keydown={(e)=> e.key==='Enter' && ask()} />
-    <button on:click={ask}>Gönder</button>
+    <input
+      placeholder="Model'e sor…"
+      bind:value={input}
+      on:keydown={(e) => e.key === 'Enter' && ask()}
+      disabled={sending}
+    />
+    <button on:click={ask} disabled={sending}>Gönder</button>
   </div>
 </div>
