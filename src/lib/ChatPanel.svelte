@@ -1,5 +1,6 @@
 <script lang="ts">
   let input = '';
+  let systemPrompt = 'Kısa ve net yardımcı ol.';
   let history: { role: 'user' | 'assistant'; content: string }[] = [];
   let sending = false;
 
