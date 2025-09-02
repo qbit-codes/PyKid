@@ -11,7 +11,7 @@
   let sending = false;
 
   // ✅ Sadece bu: checkbox ile streaming seçimi
-  let useStream = false;
+  let useStream = true;
 
   // --- Mevcut klasik istek ---
   async function ask() {
@@ -146,8 +146,8 @@
     {/each}
   </div>
   <div class="row">
-    <!-- ✅ Sadece bir checkbox eklendi -->
-    <label><input type="checkbox" bind:checked={useStream} /> Streaming</label>
+    <!-- ✅ Sadece bir checkbox eklendi 
+    <label><input type="checkbox" bind:checked={useStream} /> Streaming</label>-->
 
     <input
       placeholder="Model'e sor…"
