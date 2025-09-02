@@ -2,6 +2,7 @@
 import OpenAI from 'openai';
 import { OPENAI_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
+import { ADA_TEACHER_PROMPT } from '$lib/prompts/adaTeacher';
 
 const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
@@ -11,7 +12,10 @@ export const POST: RequestHandler = async ({ request }) => {
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response('Bad Request: messages[] gerekli', { status: 400 });
   }
-
+  if (!messages.some((m: any) => m?.role === 'system')) {
+    messages.unshift({ role: 'system', content: ADA_TEACHER_PROMPT });
+  }
+  
   const enc = new TextEncoder();
 
   const stream = new ReadableStream({

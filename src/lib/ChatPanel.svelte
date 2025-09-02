@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { ADA_TEACHER_PROMPT } from '$lib/prompts/adaTeacher';
+
   let input = '';
-  let systemPrompt = 'Kısa ve net yardımcı ol.';
+  let systemPrompt = ADA_TEACHER_PROMPT;'Kısa ve net yardımcı ol.';// eski promt  'Kısa ve net yardımcı ol.'
   let history: { role: 'user' | 'assistant'; content: string }[] = [];
   let sending = false;
 
@@ -63,7 +65,7 @@
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           messages: [
-            { role: 'system', content: 'Kısa ve net yardımcı ol.' },
+            { role: 'system', content: systemPrompt },
             ...history.slice(0, -1) // son boş assistant'ı gönderme
           ]
         })

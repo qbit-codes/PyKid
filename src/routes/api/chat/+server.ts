@@ -1,6 +1,7 @@
 // ...existing code...
 import { json } from '@sveltejs/kit';
 import OpenAI from 'openai';
+import { ADA_TEACHER_PROMPT } from '$lib/prompts/adaTeacher';
 import { OPENAI_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
 
@@ -10,7 +11,9 @@ const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 export const POST: RequestHandler = async ({ request }) => {
   const body = await request.json().catch(() => ({}));
   const messages = Array.isArray(body.messages) ? body.messages : [];
-
+  if (!messages.some((m: any) => m?.role === 'system')) {
+    messages.unshift({ role: 'system', content: ADA_TEACHER_PROMPT });
+  }
   // Basit doğrulama
   if (!messages.length) return json({ error: 'messages required' }, { status: 400 });
   if (messages.join(' ').length > 50_000) return json({ error: 'messages too long' }, { status: 400 });
