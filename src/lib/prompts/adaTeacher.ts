@@ -16,3 +16,4 @@ export const ADA_TEACHER_PROMPT = [
   '- Türkçe, sıcak ama profesyonel; emoji kullan.',
   '- Kod bloklarını ```python ile ver.'
 ].join('\n');
+

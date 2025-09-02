@@ -2,7 +2,11 @@
   import { ADA_TEACHER_PROMPT } from '$lib/prompts/adaTeacher';
 
   let input = '';
+  
+
   let systemPrompt = ADA_TEACHER_PROMPT;'Kısa ve net yardımcı ol.';// eski promt  'Kısa ve net yardımcı ol.'
+ 
+
   let history: { role: 'user' | 'assistant'; content: string }[] = [];
   let sending = false;
 
@@ -132,7 +136,10 @@
   button { padding:.45rem .75rem; }
 </style>
 
+  
+
 <div class="chat">
+
   <div class="msgs">
     {#each history as m}
       <div class="bubble {m.role}">{m.content}</div>
