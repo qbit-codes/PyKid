@@ -3,11 +3,12 @@ import OpenAI from 'openai';
 import { OPENAI_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
 import { ADA_TEACHER_PROMPT } from '$lib/prompts/adaTeacher';
+import { pickPraiseFor} from '$lib/praise';
 
 const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 export const POST: RequestHandler = async ({ request }) => {
-  const { messages, model = 'gpt-4o-mini', temperature = 0.7 } = await request.json();
+  const { messages, model = 'gpt-4o-mini', temperature = 0.5 } = await request.json();
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response('Bad Request: messages[] gerekli', { status: 400 });
@@ -23,6 +24,16 @@ export const POST: RequestHandler = async ({ request }) => {
       // (opsiyonel) otomatik reconnect için tavsiye
       controller.enqueue(enc.encode('retry: 500\n\n'));
 
+     // --- ÖVGÜ ENJEKSİYONU (ilk chunk olarak) ---
+     /*
+    const usePraise = Math.random() < 0.7;
+    if (usePraise) {
+      const praise = pickPraiseFor(messages, { rate: 0.6, lookback: 6, cooldownTurns: 1 });
+      if (praise) {
+        controller.enqueue(enc.encode(`data: ${JSON.stringify({ delta: praise + '\n\n' })}\n\n`));
+      }
+    }*/
+    // -------------------------------------------
       try {
         const ai = await client.chat.completions.create({
           model,

@@ -4,6 +4,7 @@ import OpenAI from 'openai';
 import { ADA_TEACHER_PROMPT } from '$lib/prompts/adaTeacher';
 import { OPENAI_API_KEY } from '$env/static/private';
 import type { RequestHandler } from './$types';
+import { pickPraiseFor} from '$lib/praise';
 
 const client = new OpenAI({ apiKey: OPENAI_API_KEY });
 
@@ -22,12 +23,18 @@ export const POST: RequestHandler = async ({ request }) => {
     const resp = await client.chat.completions.create({
       model: body.model ?? 'gpt-4o-mini',   // istekten model param kontrolü
       messages,
-      temperature: typeof body.temperature === 'number' ? body.temperature : 0.7,
+      temperature: typeof body.temperature === 'number' ? body.temperature : 0.5,//0.7 idi
       max_tokens: typeof body.max_tokens === 'number' ? body.max_tokens : 800
     });
 
     const text = resp.choices?.[0]?.message?.content ?? '';
-    return json({ text, usage: resp.usage ?? null });
+    // 🔽 Eklenen 2 satır
+    const praise = pickPraiseFor(messages, { rate: 0.6, lookback: 6, cooldownTurns: 1 });
+    const usePraise = Math.random() < 0.7;
+    const final = usePraise ? `${praise}\n\n${text}` : text;
+
+    return json({ text});
+    //return json({ text, usage: resp.usage ?? null });
   } catch (err: any) {
     console.error('OpenAI error', err);
     return json({ error: err?.message ?? String(err) }, { status: 502 });
