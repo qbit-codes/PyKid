@@ -354,21 +354,21 @@ print("Merhaba!")
     --text: #0f172a;
     --line: #e8edf5;
 
-    --accent: #b4bcca;
+    --accent: #6f757e;
     --accent-weak: #eaf2ff;
 
-    --radius: .5rem; /* köşeler */
+    --radius: .3rem; /* köşeler */
     --glass-bg: rgba(255,255,255,.45);
     --glass-border: rgba(255,255,255,.36);
-    --glass-blur: 18px;
+    --glass-blur: 14px;
   }
 
   /* ==== Arkaplan ==== */
   :global(html, body){
     height:100%; margin:0; overflow:hidden; color:var(--text);
     background:
-      radial-gradient(1100px 700px at 8% -10%, #cfe6ff 0%, rgba(207,230,255,0) 40%),
-      radial-gradient(900px 700px at 100% -5%, #ffe4ef 0%, rgba(255,228,239,0) 45%),
+      radial-gradient(1100px 700px at 8% -10%, #99b9da 0%, rgba(207,230,255,0) 40%),
+      radial-gradient(900px 700px at 100% -5%, #b8a0a9 0%, rgba(255,228,239,0) 45%),
       var(--bg);
   }
 
@@ -387,6 +387,18 @@ print("Merhaba!")
   :global(.monaco-editor-background),
   :global(.monaco-scrollable-element){ background: transparent !important; }
   :global(:root){ --vscode-focusBorder: transparent; }
+  /* Monaco: focus outline'ını kökten kapat */
+  /* === Monaco: kenardaki mavi çerçeveyi her durumda kapat === */
+  :global(.monaco-editor),
+  :global(.monaco-editor .overflow-guard),
+  :global(.monaco-editor .monaco-editor-background),
+  :global(.monaco-editor .margin){
+    outline: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+
 </style>
 
 {#await pyodideReady}
