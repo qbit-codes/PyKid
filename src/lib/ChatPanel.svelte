@@ -3,10 +3,8 @@
 
   let input = '';
   
-
   let systemPrompt = ADA_TEACHER_PROMPT;'Kısa ve net yardımcı ol.';// eski promt  'Kısa ve net yardımcı ol.'
  
-
   let history: { role: 'user' | 'assistant'; content: string }[] = [];
   let sending = false;
 
@@ -135,8 +133,6 @@
   input { flex:1; padding:.5rem .6rem; border:1px solid #ddd; border-radius:.5rem; }
   button { padding:.45rem .75rem; }
 </style>
-
-  
 
 <div class="chat">
 

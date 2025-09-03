@@ -214,7 +214,7 @@ print("Merhaba!")
     }
   }
 </script>
-
+<!--
 <style>
   :global(html, body) {
     height: 100%;
@@ -344,6 +344,165 @@ print("Merhaba!")
     opacity: .6;
     cursor: not-allowed;
   }
+</style>-->
+<style>
+  /* ==== Tokenlar ==== */
+  :global(:root){
+    --bg: #c9c8c5;
+    --panel: #ffffff;
+    --line: #e8edf5;
+    --text: #0f172a;
+
+    --accent: #b4bcca;
+    --accent-weak: #eaf2ff;
+
+    --radius: 16px;
+    --shadow: 0 12px 32px rgba(130, 135, 146, 0.1);
+
+    /* glass */
+    --glass-bg: rgba(255,255,255,.45);
+    --glass-border: rgba(255,255,255,.36);
+    --glass-blur: 18px;
+  }
+
+  /* ==== Arkaplan (blur’un arkasında renk) ==== */
+  :global(html, body){
+    height:100%; margin:0; overflow:hidden; color:var(--text);
+    background:
+      radial-gradient(1100px 700px at 8% -10%, #cfe6ff 0%, rgba(207,230,255,0) 40%),
+      radial-gradient(900px 700px at 100% -5%, #ffe4ef 0%, rgba(255,228,239,0) 45%),
+      var(--bg);
+  }
+
+  /* ==== Grid yerleşimi ==== */
+  .shell{
+    display:grid;
+    grid-template-columns:minmax(260px,32%) 10px 1fr; /* JS override */
+    gap:.9rem; height:100vh; padding:.9rem; box-sizing:border-box;
+  }
+  .leftPane{
+    height:100%; min-height:0; display:grid;
+    grid-template-rows:200px 10px 1fr; /* JS override */
+    gap:.9rem;
+  }
+  .page{
+    display:grid;
+    grid-template-rows:1fr 10px 260px; /* JS override */
+    height:100%; gap:.9rem; min-height:0;
+  }
+
+  /* ==== Glass Kartlar ==== */
+  :is(.chatPane, .editor, .out, .videoWrap){
+    position: relative;
+    border-radius: var(--radius);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow),
+                inset 0 .5px 0 rgba(255,255,255,.55),
+                inset 0 -1px 0 rgba(15,23,42,.08);
+    backdrop-filter: saturate(160%) blur(var(--glass-blur));
+    -webkit-backdrop-filter: saturate(160%) blur(var(--glass-blur));
+    min-height:0; overflow: clip;
+  }
+  :is(.chatPane, .editor, .out, .videoWrap)::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
+      linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;
+    mix-blend-mode: soft-light;
+  }
+  @supports not (backdrop-filter: blur(1px)){
+    :is(.chatPane, .editor, .out, .videoWrap){
+      background:#fff; border:1px solid var(--line); box-shadow: var(--shadow);
+    }
+  }
+
+  /* ==== İçerikler camı kapatmasın diye: padding + şeffaf alt katmanlar ==== */
+  .chatPane{ padding:8px; }
+  .editor{ padding:8px; overflow:hidden; }
+  .out{ overflow:hidden; }
+
+  /* ChatPanel içi şeffaf olsun (cam görünsün) */
+  .chatPane :global(.chat){ background: transparent; }
+  .chatPane :global(.row){ background: transparent; }
+
+  /* Monaco arka planlarını tamamen şeffaf yap */
+  .editor :global(.monaco-editor),
+  .editor :global(.monaco-editor .overflow-guard),
+  .editor :global(.monaco-editor .margin),
+  .editor :global(.monaco-editor-background),
+  .editor :global(.monaco-scrollable-element){
+    background: transparent !important;
+  }
+
+  /* Video alanı (cam çerçeve için sarmalayıcı) */
+  .videoWrap{ padding:8px; }
+  video{ width:100%; height:100%; object-fit:contain; background:#000; border-radius:12px; }
+
+  /* ==== Gutter’lar ==== */
+  .gutter-v, .gutter-h{
+    border-radius:999px;
+    background:
+      repeating-linear-gradient(to right,#d9e1f1,#d9e1f1 2px,transparent 2px,transparent 8px);
+  }
+  .gutter-v{ cursor: col-resize; width:10px; }
+  .gutter-h{ cursor: row-resize; height:10px; }
+  .gutter-v:focus, .gutter-h:focus{ outline:3px solid var(--accent); outline-offset:2px; }
+
+  /* ==== Konsol ==== */
+  .toolbar{
+    display:flex; gap:.5rem; align-items:center;
+    padding:.55rem .9rem; border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg, var(--accent-weak), #fff);
+    border-top-left-radius: var(--radius);
+    border-top-right-radius: var(--radius);
+  }
+  .toolbar button:first-child{
+    background: var(--accent); color:#fff; border: none;
+    box-shadow: 0 8px 18px rgba(37,99,235,.28);
+  }
+  .log{
+    flex:1 1 auto; padding:1rem;
+    overflow:auto; white-space:pre-wrap;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size:14px;
+    background: transparent;
+  }
+
+  /* ==== Chat okunabilirliği ==== */
+  :global(.chat .msgs){ max-width:70ch; margin-inline:auto; padding:.9rem; }
+  :global(.chat .bubble){ padding:.7rem 1rem; border-radius:1.1rem; box-shadow: var(--shadow); }
+  :global(.chat .user){ background: var(--accent-weak); }
+  :global(.chat .assistant){ background:#f3faf6; border:1px solid #ddefe5; }
+
+  /* === IDE (Monaco) odak kenarını kapat === */
+  .editor, .editor:focus, .editor:focus-within {
+    outline: none !important;
+  }
+
+  /* Monaco’nun kendi focus/outline/box-shadow'u */
+  .editor :global(.monaco-editor),
+  .editor :global(.monaco-editor:focus),
+  .editor :global(.monaco-editor.focused),
+  .editor :global(.monaco-editor .inputarea:focus) {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Monaco’nun kenar çizgileri (margin/overflow-guard) */
+  .editor :global(.monaco-editor .margin),
+  .editor :global(.monaco-editor .overflow-guard) {
+    border: none !important;
+  }
+
+  /* VSCode/Monaco teması odak rengi değişkeni */
+  :global(:root) {
+    --vscode-focusBorder: transparent;
+  }
+
+  /* (Opsiyonel) Editör cam çerçeve sınırını da tamamen kaldırmak istersen: */
+  /* .editor { border: none !important; } */
+
 </style>
 
 {#await pyodideReady}
@@ -366,35 +525,26 @@ print("Merhaba!")
       on:pointerup={endLeftDrag}
       on:pointercancel={endLeftDrag}
     >
-      <!-- Video Panel 
-       
-      <div class="videoPane">
+      <!-- Video Panel (cam/blur kart) -->
+      <div >
         <video
           bind:this={videoEl}
-          src="/videos/example.mp4" 
           controls
           playsinline
-          style="width:100%; height:100%; object-fit:contain; background:#000; border-radius:.5rem;"
-        />
-      </div>-->
-      <!-- Video Panel captionlı -->
-      <video
-        bind:this={videoEl}
-        controls
-        playsinline
-        style="width:100%; height:100%; object-fit:contain; background:#000; border-radius:.5rem;"
-        aria-label="PyKid tanıtım videosu"
-      >
-      <source src="/videos/example.mp4" type="video/mp4" />
-      <track
-        kind="captions"
-        src="/videos/example.tr.vtt"
-        srclang="tr"
-        label="Türkçe"
-        default
-      />
-      Tarayıcınız video etiketini desteklemiyor.
-      </video>
+          style="width:100%; height:100%; object-fit:contain; background:#000; border-radius:12px;"
+          aria-label="PyKid tanıtım videosu"
+        >
+          <source src="/videos/example.mp4" type="video/mp4" />
+          <track
+            kind="captions"
+            src="/videos/example.tr.vtt"
+            srclang="tr"
+            label="Türkçe"
+            default
+          />
+          Tarayıcınız video etiketini desteklemiyor.
+        </video>
+      </div>
 
       <!-- YATAY GUTTER (Video ↔ Chat) -->
       <div
@@ -422,7 +572,7 @@ print("Merhaba!")
         }}
       ></div>
 
-      <!-- Chat Panel -->
+      <!-- Chat Panel (glass) -->
       <div class="chatPane">
         <ChatPanel />
       </div>
