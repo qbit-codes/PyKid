@@ -481,10 +481,10 @@ print("Merhaba!")
       </div>
     </div>
 
-    <!-- GUTTER (Dikey: Sol sütun ↔ IDE) -->
+    <!-- GUTTER (Dikey: Sol sütun ↔ IDE) bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)] -->
     <div
       class="w-[8px] shrink-0 z-10 rounded-full
-             bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)]
+             
              cursor-col-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
       role="slider"
       aria-orientation="vertical"
@@ -526,10 +526,10 @@ print("Merhaba!")
         
       </div>
 
-      <!-- GUTTER (Yatay: Editor ↔ Konsol) -->
+      <!-- GUTTER (Yatay: Editor ↔ Konsol) deleted-> bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)] -->
       <div
         class="h-[8px] shrink-0 z-10 rounded-full
-               bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)]
+              
                cursor-row-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
         role="slider"
         aria-orientation="horizontal"
