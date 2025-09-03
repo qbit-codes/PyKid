@@ -16,8 +16,8 @@
   const pyodideReady = usePyodide();
 
   const initial = `# PyKid'e Hoş geldin!
-print("Merhaba!")
-`;
+  print("Merhaba!")
+  `;
 
   // ---- Split ölçüleri (persist edilir) ----
   let leftPx = 380;      // sol panel (Chat) px genişlik
@@ -256,7 +256,7 @@ print("Merhaba!")
     <div class="chatPane">
       <ChatPanel />
     </div>
-
+    
     <!-- DİKEY GUTTER (Chat ↔ IDE) -->
     <div
       class="gutter-v"
