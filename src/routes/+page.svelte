@@ -350,15 +350,15 @@ print("Merhaba!")
 <style>
   /* ==== Tokenlar ==== */
   :global(:root){
-    --bg: #c9c8c5;
-    --text: #0f172a;
+    --bg: #FEF3E2;
+    --text: #2a150f;
     --line: #e8edf5;
 
-    --accent: #b4bcca;
-    --accent-weak: #eaf2ff;
+    --accent: #e9c647;
+    --accent-weak: #FEF3E2;
 
     --radius: .5rem; /* köşeler */
-    --shadow: 0 12px 32px rgba(130,135,146,.10);
+    --shadow: 0 12px 32px #b4af9a;
 
     /* glass */
     --glass-bg: rgba(255,255,255,.45);
@@ -370,7 +370,7 @@ print("Merhaba!")
   :global(html, body){
     height:100%; margin:0; overflow:hidden; color:var(--text);
     background:
-      radial-gradient(1100px 700px at 8% -10%, #cfe6ff 0%, rgba(207,230,255,0) 40%),
+      radial-gradient(1100px 700px at 8% -10%, #FFB22C 0%, rgba(207,230,255,0) 40%),
       radial-gradient(900px 700px at 100% -5%, #ffe4ef 0%, rgba(255,228,239,0) 45%),
       var(--bg);
   }
@@ -387,7 +387,7 @@ print("Merhaba!")
     border: 1px solid var(--glass-border);
     background: var(--glass-bg);
     box-shadow: var(--shadow),
-                inset 0 .5px 0 rgba(255,255,255,.55),
+                inset 0 .5px 0 rgba(233, 232, 232, 0.55),
                 inset 0 -1px 0 rgba(15,23,42,.08);
     backdrop-filter: saturate(160%) blur(var(--glass-blur));
     -webkit-backdrop-filter: saturate(160%) blur(var(--glass-blur));
@@ -435,7 +435,7 @@ print("Merhaba!")
   /* Gutter’lar */
   .gutter-v, .gutter-h{
     border-radius:999px;
-    background: repeating-linear-gradient(to right,#d9e1f1,#d9e1f1 2px,transparent 2px,transparent 8px);
+    background: repeating-linear-gradient(to right,#e9d3b4,#e7e1d8 2px,transparent 2px,transparent 8px);
   }
   .gutter-v{ cursor: col-resize; width:10px; }
   .gutter-h{ cursor: row-resize; height:10px; }
@@ -445,11 +445,11 @@ print("Merhaba!")
   .toolbar{
     display:flex; gap:.5rem; align-items:center;
     padding:.55rem .9rem; border-bottom:1px solid var(--line);
-    background: linear-gradient(180deg, var(--accent-weak), #fff);
+    background: linear-gradient(180deg, var(--accent-weak), #e9d3b4);
     border-top-left-radius: var(--radius);
     border-top-right-radius: var(--radius);
   }
-  .toolbar button:first-child{ background: var(--accent); color:#fff; border:none; box-shadow: 0 8px 18px rgba(37,99,235,.28); }
+  .toolbar button:first-child{ background: var(--accent); color:#fff; border:none; box-shadow: 0 8px 18px rgba(255, 255, 255, 0.28); }
   .log{ flex:1 1 auto; padding:1rem; overflow:auto; white-space:pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:14px; background: transparent; }
 
   /* Chat okunabilirliği */
@@ -479,7 +479,7 @@ print("Merhaba!")
       on:pointerup={endLeftDrag}
       on:pointercancel={endLeftDrag}
     >
-      <!-- Video Panel (glass) class="videoWrap glass" class="videoWrap glass"-->
+      <!-- Video Panel (glass) -->
       <div >
         <video
           bind:this={videoEl}
