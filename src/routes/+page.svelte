@@ -440,10 +440,10 @@ print("Merhaba!")
         </div>
       </div>
 
-      <!-- GUTTER (Yatay: Video ↔ Chat) -->
+      <!-- GUTTER (Yatay: Video ↔ Chat) bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)]-->
       <div
         class="h-[8px] shrink-0 z-10 rounded-full
-               bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)]
+               
                cursor-row-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
         role="slider"
         aria-orientation="horizontal"
