@@ -350,7 +350,7 @@ print("Merhaba!")
 <style>
   /* ==== Tokenlar ==== */
   :global(:root){
-    --bg: #FEF3E2;
+    --bg: #9b9baf;
     --text: #2a150f;
     --line: #e8edf5;
 
