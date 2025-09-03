@@ -37,4 +37,4 @@ An online Python IDE designed for kids to learn Python programming with an AI te
 - `npm run check` - Run type checking
 
 <img width="2557" height="1181" alt="PyKid IDE Screenshot" src="https://github.com/user-attachments/assets/ac6234a7-ba85-4d84-b6c0-effe671d7313" />
-![Uploading Ekran görüntüsü 2025-09-03 130220.png…]()
+
