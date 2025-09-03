@@ -346,21 +346,18 @@ print("Merhaba!")
   }
 </style>-->
 
-
+<!-- === STIL (Tokenlar + küçük global override; layout Tailwind) === -->
 <style>
   /* ==== Tokenlar ==== */
   :global(:root){
-    --bg: #9b9baf;
-    --text: #2a150f;
+    --bg: #c9c8c5;
+    --text: #0f172a;
     --line: #e8edf5;
 
-    --accent: #e9c647;
-    --accent-weak: #FEF3E2;
+    --accent: #b4bcca;
+    --accent-weak: #eaf2ff;
 
     --radius: .5rem; /* köşeler */
-    --shadow: 0 12px 32px #b4af9a;
-
-    /* glass */
     --glass-bg: rgba(255,255,255,.45);
     --glass-border: rgba(255,255,255,.36);
     --glass-blur: 18px;
@@ -370,133 +367,84 @@ print("Merhaba!")
   :global(html, body){
     height:100%; margin:0; overflow:hidden; color:var(--text);
     background:
-      radial-gradient(1100px 700px at 8% -10%, #FFB22C 0%, rgba(207,230,255,0) 40%),
+      radial-gradient(1100px 700px at 8% -10%, #cfe6ff 0%, rgba(207,230,255,0) 40%),
       radial-gradient(900px 700px at 100% -5%, #ffe4ef 0%, rgba(255,228,239,0) 45%),
       var(--bg);
   }
 
-  /* ==== Grid yerleşimi (aynı) ==== */
-  .shell{ display:grid; grid-template-columns:minmax(260px,32%) 10px 1fr; gap:.9rem; height:100vh; padding:.9rem; box-sizing:border-box; }
-  .leftPane{ height:100%; min-height:0; display:grid; grid-template-rows:200px 10px 1fr; gap:.9rem; }
-  .page{ display:grid; grid-template-rows:1fr 10px 260px; height:100%; gap:.9rem; min-height:0; }
-
-  /* ==== Glass kart ==== */
-  .glass{
-    position:relative;
-    border-radius: var(--radius);
-    border: 1px solid var(--glass-border);
-    background: var(--glass-bg);
-    box-shadow: var(--shadow),
-                inset 0 .5px 0 rgba(233, 232, 232, 0.55),
-                inset 0 -1px 0 rgba(15,23,42,.08);
-    backdrop-filter: saturate(160%) blur(var(--glass-blur));
-    -webkit-backdrop-filter: saturate(160%) blur(var(--glass-blur));
-    overflow: clip; /* köşe taşmasın */
-  }
-  .glass::after{
-    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-    background:
-      linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
-      linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;
-    mix-blend-mode: soft-light;
-  }
-  @supports not (backdrop-filter: blur(1px)){
-    .glass{ background:#fff; border:1px solid var(--line); box-shadow: var(--shadow); }
-  }
-
-  /* İçerikler camı kapatmasın */
-  .chatPane{ padding:8px; }
-  .editor{ padding:8px; overflow:hidden; }
-  .out{ overflow:hidden; }
-
-  /* ChatPanel içi şeffaf */
-  .chatPane :global(.chat){ background: transparent; }
-  .chatPane :global(.row){ background: transparent; }
-
-  /* Monaco arka planlarını şeffaf + odak çizgisini kapat */
-  .editor :global(.monaco-editor),
-  .editor :global(.monaco-editor .overflow-guard),
-  .editor :global(.monaco-editor .margin),
-  .editor :global(.monaco-editor-background),
-  .editor :global(.monaco-scrollable-element){ background: transparent !important; }
-  .editor, .editor:focus, .editor:focus-within{ outline:none !important; }
-  .editor :global(.monaco-editor),
-  .editor :global(.monaco-editor:focus),
-  .editor :global(.monaco-editor.focused),
-  .editor :global(.monaco-editor .inputarea:focus){ outline:none !important; box-shadow:none !important; }
-  .editor :global(.monaco-editor .margin),
-  .editor :global(.monaco-editor .overflow-guard){ border:none !important; }
-  :global(:root){ --vscode-focusBorder: transparent; }
-
-  /* Video */
-  .videoWrap{ padding:8px; }
-  video{ width:100%; height:100%; object-fit:contain; background:#000; border-radius:.5rem; }
-
-  /* Gutter’lar */
-  .gutter-v, .gutter-h{
-    border-radius:999px;
-    background: repeating-linear-gradient(to right,#e9d3b4,#e7e1d8 2px,transparent 2px,transparent 8px);
-  }
-  .gutter-v{ cursor: col-resize; width:10px; }
-  .gutter-h{ cursor: row-resize; height:10px; }
-  .gutter-v:focus, .gutter-h:focus{ outline:3px solid var(--accent); outline-offset:2px; }
-
-  /* Konsol */
-  .toolbar{
-    display:flex; gap:.5rem; align-items:center;
-    padding:.55rem .9rem; border-bottom:1px solid var(--line);
-    background: linear-gradient(180deg, var(--accent-weak), #e9d3b4);
-    border-top-left-radius: var(--radius);
-    border-top-right-radius: var(--radius);
-  }
-  .toolbar button:first-child{ background: var(--accent); color:#fff; border:none; box-shadow: 0 8px 18px rgba(255, 255, 255, 0.28); }
-  .log{ flex:1 1 auto; padding:1rem; overflow:auto; white-space:pre-wrap; font-family: ui-monospace, Menlo, Consolas, monospace; font-size:14px; background: transparent; }
-
-  /* Chat okunabilirliği */
+  /* --- ChatPanel içi (global) --- */
+  :global(.chat){ background: transparent; }
+  :global(.chat .row){ background: transparent; }
   :global(.chat .msgs){ max-width:70ch; margin-inline:auto; padding:.9rem; }
-  :global(.chat .bubble){ padding:.7rem 1rem; border-radius:1.1rem; box-shadow: var(--shadow); }
+  :global(.chat .bubble){ padding:.7rem 1rem; border-radius:1.1rem; box-shadow: 0 12px 32px rgba(130,135,146,.10); }
   :global(.chat .user){ background: var(--accent-weak); }
   :global(.chat .assistant){ background:#f3faf6; border:1px solid #ddefe5; }
+
+  /* --- Monaco'yu şeffaf yap + focus çizgisini kaldır --- */
+  :global(.monaco-editor),
+  :global(.monaco-editor .overflow-guard),
+  :global(.monaco-editor .margin),
+  :global(.monaco-editor-background),
+  :global(.monaco-scrollable-element){ background: transparent !important; }
+  :global(:root){ --vscode-focusBorder: transparent; }
 </style>
 
 {#await pyodideReady}
   <div>Pyodide yükleniyor…</div>
 {:then py}
+  <!-- SHELL -->
   <div
-    class="shell"
+    class="grid h-screen min-h-0 box-border gap-[0.9rem] p-[0.9rem]"
     bind:this={shellEl}
     style={`grid-template-columns:${leftPx}px 8px 1fr;`}
     on:pointermove={onPointerMove}
     on:pointerup={endDrag}
     on:pointercancel={endDrag}
   >
-    <!-- SOL: Video + Chat (iç grid) -->
+    <!-- SOL SÜTUN: Video + Chat -->
     <div
-      class="leftPane"
+      class="grid min-h-0 h-full"
       bind:this={leftPaneEl}
       style={`grid-template-rows:${videoPx}px 8px 1fr;`}
       on:pointermove={onPointerMoveLeft}
       on:pointerup={endLeftDrag}
       on:pointercancel={endLeftDrag}
     >
-      <!-- Video Panel (glass) -->
-      <div >
-        <video
-          bind:this={videoEl}
-          controls
-          playsinline
-          style="width:100%; height:100%; object-fit:contain; background:#000; border-radius:.5rem;"
-          aria-label="PyKid tanıtım videosu"
-        >
-          <source src="/videos/example.mp4" type="video/mp4" />
-          <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
-          Tarayıcınız video etiketini desteklemiyor.
-        </video>
+      <!-- VIDEO KART (GLASS) -->
+      <div
+        class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
+               bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
+               [backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
+               [-webkit-backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
+               overflow-hidden"
+      >
+        <!-- cam parıltı overlay -->
+        <div
+          class="pointer-events-none absolute inset-0 [border-radius:inherit] mix-blend-soft-light z-0"
+          style="background:
+            linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
+            linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
+        ></div>
+        <div class="relative z-[1] p-2 h-full">
+          <video
+            bind:this={videoEl}
+            controls
+            playsinline
+            class="w-full h-full object-contain bg-black rounded-[0.5rem]"
+            aria-label="PyKid tanıtım videosu"
+          >
+            <source src="/videos/example.mp4" type="video/mp4" />
+            <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
+            Tarayıcınız video etiketini desteklemiyor.
+          </video>
+        </div>
       </div>
 
-      <!-- YATAY GUTTER (Video ↔ Chat) -->
+      <!-- GUTTER (Yatay: Video ↔ Chat) -->
       <div
-        class="gutter-h"
+        class="h-[8px] shrink-0 z-10 rounded-full
+               bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)]
+               cursor-row-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
         role="slider"
         aria-orientation="horizontal"
         aria-label="Video panel boyutlandırma"
@@ -513,15 +461,31 @@ print("Merhaba!")
         }}
       ></div>
 
-      <!-- Chat Panel -->
-      <div class="chatPane glass">
-        <ChatPanel />
+      <!-- CHAT KART (GLASS) -->
+      <div
+        class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
+               bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
+               [backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
+               [-webkit-backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
+               overflow-hidden p-2"
+      >
+        <div
+          class="pointer-events-none absolute inset-0 [border-radius:inherit] mix-blend-soft-light z-0"
+          style="background:
+            linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
+            linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
+        ></div>
+        <div class="relative z-[1] h-full">
+          <ChatPanel />
+        </div>
       </div>
     </div>
 
-    <!-- DİKEY GUTTER (Sol sütun ↔ IDE) -->
+    <!-- GUTTER (Dikey: Sol sütun ↔ IDE) -->
     <div
-      class="gutter-v"
+      class="w-[8px] shrink-0 z-10 rounded-full
+             bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)]
+             cursor-col-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
       role="slider"
       aria-orientation="vertical"
       aria-label="Panel boyutlandırma"
@@ -538,17 +502,35 @@ print("Merhaba!")
       }}
     ></div>
 
-    <!-- SAĞ: IDE + Konsol -->
+    <!-- SAG: IDE + Konsol -->
     <div
-      class="page"
+      class="grid h-full min-h-0"
       bind:this={pageEl}
       style={`grid-template-rows:${rowTopPx ? `${rowTopPx}px` : '1fr'} 8px 1fr;`}
     >
-      <div class="editor glass" bind:this={editorEl}></div>
-
-      <!-- YATAY GUTTER (Editor ↔ Konsol) -->
+      <!-- EDITOR KART (GLASS) -->
       <div
-        class="gutter-h"
+        class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
+               bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
+               [backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
+               [-webkit-backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
+               overflow-hidden p-2"
+        bind:this={editorEl}
+      >
+        <div
+          class="pointer-events-none absolute inset-0 [border-radius:inherit] mix-blend-soft-light z-0"
+          style="background:
+            linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
+            linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
+        ></div>
+        
+      </div>
+
+      <!-- GUTTER (Yatay: Editor ↔ Konsol) -->
+      <div
+        class="h-[8px] shrink-0 z-10 rounded-full
+               bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)]
+               cursor-row-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
         role="slider"
         aria-orientation="horizontal"
         aria-label="Panel boyutlandırma"
@@ -565,15 +547,50 @@ print("Merhaba!")
         }}
       ></div>
 
-      <div class="out glass" bind:this={outEl}>
-        <div class="toolbar">
-          <button on:click={() => runCode(py)} disabled={running || !editor}>▶ Çalıştır</button>
-          <button on:click={() => (output='')}>Temizle</button>
+      <!-- KONSOL KART (GLASS) -->
+      <div
+        class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
+               bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
+               [backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
+               [-webkit-backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
+               overflow-hidden"
+        bind:this={outEl}
+      >
+        <div
+          class="pointer-events-none absolute inset-0 [border-radius:inherit] mix-blend-soft-light z-0"
+          style="background:
+            linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
+            linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
+        ></div>
+        <div class="relative z-[1]">
+          <div
+            class="flex items-center gap-2 px-[0.9rem] py-[0.55rem]
+                   border-b border-[var(--line)]
+                   bg-gradient-to-b from-[var(--accent-weak)] to-white
+                   rounded-t-[var(--radius)]"
+          >
+            <button
+              class="px-3 py-1.5 rounded-md bg-[var(--accent)] text-white border-0
+                     shadow-[0_8px_18px_rgba(37,99,235,.28)] disabled:opacity-60"
+              on:click={() => runCode(py)}
+              disabled={running || !editor}
+            >
+              ▶ Çalıştır
+            </button>
+            <button
+              class="px-3 py-1.5 rounded-md border border-[var(--line)] bg-white/70 hover:bg-white"
+              on:click={() => (output='')}
+            >
+              Temizle
+            </button>
+          </div>
+          <div class="p-4 overflow-auto whitespace-pre-wrap font-mono text-[14px] bg-transparent">
+            {output || 'Çıktı burada görünecek.'}
+          </div>
         </div>
-        <div class="log">{output || 'Çıktı burada görünecek.'}</div>
       </div>
     </div>
   </div>
 {:catch err}
-  <div style="color:#b00">Pyodide başlatılamadı: {String(err)}</div>
+  <div class="text-[#b00]">Pyodide başlatılamadı: {String(err)}</div>
 {/await}
