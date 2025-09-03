@@ -25,3 +25,5 @@ vite.config.ts.timestamp-*
 # Ignore all .md files except README.md
 *.md
 !README.md
+static/videos/example.mp4
+static/videos/example.tr.vtt
