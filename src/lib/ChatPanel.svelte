@@ -1,17 +1,77 @@
 <script lang="ts">
   import { ADA_TEACHER_PROMPT } from '$lib/prompts/adaTeacher';
+  
+  // Props for getting current lesson context
+  export let getCurrentEditorContent: () => string = () => '';
 
   let input = '';
   
-  let systemPrompt = ADA_TEACHER_PROMPT;'Kısa ve net yardımcı ol.';// eski promt  'Kısa ve net yardımcı ol.'
+  let systemPrompt = ADA_TEACHER_PROMPT; // Using enhanced Ada Teacher prompt
  
   let history: { role: 'user' | 'assistant'; content: string }[] = [];
   let sending = false;
+  let hasInitialized = false;
 
-  // ✅ Sadece bu: checkbox ile streaming seçimi
+  // Streaming mode selection checkbox
   let useStream = true;
 
-  // --- Mevcut klasik istek ---
+  // Ada Teacher's proactive conversation starter with lesson context awareness
+  async function initializeConversation() {
+    if (hasInitialized || sending) return;
+    hasInitialized = true;
+    sending = true;
+
+    try {
+      // Get current editor content to understand lesson context
+      const editorContent = getCurrentEditorContent();
+      
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'system', content: `The student conversation is starting now. They haven't asked any questions yet. You should start the conversation! 
+            
+            IMPORTANT: First, detect what lesson topic the student is working on by looking at their code editor content. Then introduce yourself warmly and reference their current lesson topic. Be encouraging and let them know you're here to help with their specific lesson.
+            
+            Current editor content: "${editorContent || 'Empty - student just started'}"
+            
+            Use your detect_current_lesson_topic function to understand what they're working on, then greet them with context about their lesson.` },
+            { role: 'user', content: 'Hello Ada' }
+          ]
+        })
+      });
+
+      if (resp.ok) {
+        const result = await resp.json();
+        history = [
+          { role: 'assistant', content: result.text ?? 'Merhaba! Ben Ada, senin Python öğretmenin! 👋' }
+        ];
+      } else {
+        // Fallback message if API call fails
+        history = [
+          { role: 'assistant', content: 'Merhaba! Ben Ada, senin Python öğretmenin! Seninle Python öğrenmeyi sabırsızlıkla bekliyorum! 🐍✨' }
+        ];
+      }
+    } catch (error) {
+      // Fallback message on error
+      history = [
+        { role: 'assistant', content: 'Merhaba! Ben Ada, senin Python öğretmenin! Seninle Python öğrenmeyi sabırsızlıkla bekliyorum! 🐍✨' }
+      ];
+    } finally {
+      sending = false;
+    }
+  }
+
+  // Initialize conversation when component mounts
+  import { onMount } from 'svelte';
+  onMount(() => {
+    // Start Ada's initial message after a short delay
+    setTimeout(initializeConversation, 500);
+  });
+
+  // Standard non-streaming chat request
   async function ask() {
     const q = input.trim();
     if (!q || sending) return;
@@ -25,7 +85,7 @@
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         messages: [
-          { role: 'system', content: 'Kısa ve net yardımcı ol.' },
+          { role: 'system', content: systemPrompt },
           ...history,
           userMsg
         ]
@@ -49,7 +109,7 @@
     sending = false;
   }
 
-  // --- Streaming sürümü (tek fark: token token akar) ---
+  // Streaming version of chat request (tokens arrive incrementally)
   async function askStream() {
     const q = input.trim();
     if (!q || sending) return;
@@ -57,7 +117,7 @@
     input = '';
 
     const userMsg = { role: 'user' as const, content: q };
-    // boş assistant mesajını ekleyip akışta dolduracağız
+    // Add empty assistant message that will be filled during streaming
     history = [...history, userMsg, { role: 'assistant', content: '' }];
     const aiIndex = history.length - 1;
 
@@ -68,14 +128,14 @@
         body: JSON.stringify({
           messages: [
             { role: 'system', content: systemPrompt },
-            ...history.slice(0, -1) // son boş assistant'ı gönderme
+            ...history.slice(0, -1) // Don't send the empty assistant message
           ]
         })
       });
 
       if (!resp.ok || !resp.body) {
-        const text = !resp.ok ? `HTTP ${resp.status}` : 'Boş akış gövdesi';
-        history[aiIndex].content = `Akış başlatılamadı: ${text}`;
+        const text = !resp.ok ? `HTTP ${resp.status}` : 'Empty stream body';
+        history[aiIndex].content = `Stream failed to start: ${text}`;
         history = [...history];
         sending = false;
         return;
@@ -104,20 +164,20 @@
             const { delta } = JSON.parse(dataLine.slice(6));
             if (delta) {
               history[aiIndex].content += delta;
-              history = [...history]; // re-render
+              history = [...history]; // Trigger re-render
             }
-          } catch { /* yut */ }
+          } catch { /* Ignore parsing errors */ }
         }
       }
     } catch (e: any) {
-      history[aiIndex].content = `Akış hatası: ${e?.message || e}`;
+      history[aiIndex].content = `Stream error: ${e?.message || e}`;
       history = [...history];
     } finally {
       sending = false;
     }
   }
 
-  // ✅ Tek buton / Enter hep buradan çalışır, checkbox'a göre yönlendirir
+  // Single submit function - routes to streaming or non-streaming based on checkbox
   function submit() {
     return useStream ? askStream() : ask();
   }
@@ -142,16 +202,16 @@
     {/each}
   </div>
   <div class="row">
-    <!-- ✅ Sadece bir checkbox eklendi 
-    <label><input type="checkbox" bind:checked={useStream} /> Streaming</label>-->
+    <!-- Streaming checkbox (commented out for now) -->
+    <!-- <label><input type="checkbox" bind:checked={useStream} /> Streaming</label> -->
 
     <input
-      placeholder="Model'e sor…"
+      placeholder="Ada'ya sor…"
       bind:value={input}
       on:keydown={(e) => e.key === 'Enter' && submit()}
       disabled={sending}
     />
-    <!-- ✅ Tek buton: checkbox’a göre ask() veya askStream() -->
+    <!-- Single submit button - uses streaming or non-streaming based on useStream -->
     <button on:click={submit} disabled={sending}>Gönder</button>
   </div>
 </div>

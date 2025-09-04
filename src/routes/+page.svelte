@@ -239,6 +239,12 @@ print("Python öğrenmeye hazır mısın?")
       running = false;
     }
   }
+
+  // Function to get current editor content for Ada Teacher
+  function getCurrentEditorContent(): string {
+    if (!editor) return '';
+    return editor.getValue() || '';
+  }
 </script>
 <!--
 <style>
@@ -514,7 +520,7 @@ print("Python öğrenmeye hazır mısın?")
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
         <div class="relative z-[1] h-full">
-          <ChatPanel />
+          <ChatPanel {getCurrentEditorContent} />
         </div>
       </div>
     </div>
