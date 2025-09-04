@@ -355,8 +355,40 @@ print("Python öğrenmeye hazır mısın?")
     clampVideo();
   }
 
+  async function validateCode(code: string, lessonContext?: any) {
+    try {
+      const response = await fetch('/api/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          code, 
+          lessonContext: lessonContext || getCurrentLessonContext() 
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Validation failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.validation;
+    } catch (err) {
+      console.error('Code validation error:', err);
+      // Fallback to allow execution if validation fails
+      return {
+        isValid: true,
+        confidence: 0.1,
+        feedback: 'Doğrulama yapılamadı, kod çalıştırılıyor.',
+        suggestions: [],
+        errorType: null,
+        educationalNotes: ''
+      };
+    }
+  }
+
   async function runCode(py: Awaited<ReturnType<typeof usePyodide>>) {
     if (!editor) return;
+    const code = editor.getValue();
     output = '';
     running = true;
 
@@ -364,7 +396,30 @@ print("Python öğrenmeye hazır mısın?")
     py.onStderr((s) => { if (s) output += s; });
 
     try {
-      await py.run(editor.getValue());
+      // Step 1: Validate code with OpenAI
+      output += '🔍 Kod kontrol ediliyor...\n';
+      const validation = await validateCode(code);
+      
+      // Step 2: Show validation feedback
+      output += `\n📝 ${validation.feedback}\n`;
+      
+      if (validation.suggestions && validation.suggestions.length > 0) {
+        output += '\n💡 Öneriler:\n';
+        validation.suggestions.forEach((suggestion: string, i: number) => {
+          output += `   ${i + 1}. ${suggestion}\n`;
+        });
+      }
+      
+      if (validation.educationalNotes) {
+        output += `\n🎓 ${validation.educationalNotes}\n`;
+      }
+      
+      output += '\n' + '='.repeat(40) + '\n';
+      
+      // Step 3: Run code in Pyodide (always run, validation is for feedback only)
+      output += '🚀 Kod çalıştırılıyor...\n\n';
+      await py.run(code);
+      
     } catch (e: any) {
       output += `\n[Hata] ${e?.message || e}`;
     } finally {
