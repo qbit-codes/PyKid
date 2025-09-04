@@ -27,3 +27,8 @@ vite.config.ts.timestamp-*
 !README.md
 static/videos/example.mp4
 static/videos/example.tr.vtt
+
+# DB files
+*.db
+*.db-shm
+*.db-wal

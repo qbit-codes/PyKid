@@ -3,6 +3,10 @@
   import { onMount, onDestroy } from 'svelte';
   import { usePyodide } from '$lib/pyodide';
   import ChatPanel from '$lib/ChatPanel.svelte';
+  import { goto } from '$app/navigation';
+  import type { PageData } from './$types';
+
+  export let data: PageData;
 
   let shellEl: HTMLDivElement;   // dış grid
   let pageEl: HTMLDivElement;    // sağ taraftaki (editor+konsol) grid
@@ -20,10 +24,32 @@
 
   const pyodideReady = usePyodide();
 
-  // Başlangıç Python kodu
-  const initial = `# PyKid'e Hoş geldin!
-print("Merhaba!")
+  // Başlangıç Python kodu - kişiselleştirilmiş
+  const initial = `# PyKid'e Hoş geldin, ${data.user?.name || 'Kullanıcı'}!
+print("Merhaba ${data.user?.name || 'Kullanıcı'}!")
+print("Python öğrenmeye hazır mısın?")
 `;
+
+  // Logout function
+  async function handleLogout() {
+    try {
+      // Call logout API to clear server-side cookie
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      // Clear any local storage data
+      localStorage.removeItem('user');
+      
+      // Redirect to login
+      goto('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force redirect even if API fails
+      goto('/login');
+    }
+  }
 
   // ---- Split ölçüleri (persist edilir) ----
   let leftPx = 380;   // sol panel (Video+Chat sütunu) px genişlik
@@ -595,6 +621,20 @@ print("Merhaba!")
             >
               Temizle
             </button>
+            
+            <!-- User info and logout -->
+            <div class="ml-auto flex items-center gap-2">
+              <span class="text-sm text-[var(--accent)] hidden sm:inline">
+                Merhaba, {data.user?.name || 'Kullanıcı'}!
+              </span>
+              <button
+                class="px-2 py-1 text-xs rounded border border-[var(--line)] bg-white/50 hover:bg-white/70 text-[var(--accent)]"
+                on:click={handleLogout}
+                title="Çıkış yap"
+              >
+                Çıkış
+              </button>
+            </div>
           </div>
           <div class="p-4 overflow-auto whitespace-pre-wrap font-mono text-[14px] bg-transparent">
             {output || 'Çıktı burada görünecek.'}
