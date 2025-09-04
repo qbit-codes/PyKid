@@ -276,8 +276,8 @@
               tabindex="0"
               on:click={() => selectStep(lesson, { 
                 id: 'final-project', 
-                title: lesson.finalProject.title, 
-                content: lesson.finalProject.description,
+                title: lesson.finalProject?.title || '', 
+                content: lesson.finalProject?.description || '',
                 exercise: lesson.finalProject 
               })}
               on:keydown={(e) => {
@@ -285,8 +285,8 @@
                   e.preventDefault();
                   selectStep(lesson, { 
                     id: 'final-project', 
-                    title: lesson.finalProject.title, 
-                    content: lesson.finalProject.description,
+                    title: lesson.finalProject?.title || '', 
+                    content: lesson.finalProject?.description || '',
                     exercise: lesson.finalProject 
                   });
                 }
@@ -301,7 +301,7 @@
                   🎯
                 {/if}
               </span>
-              <span>🎯 {lesson.finalProject.title}</span>
+              <span>🎯 {lesson.finalProject?.title || 'Final Project'}</span>
             </div>
           {/if}
         </div>

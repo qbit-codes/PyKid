@@ -9,6 +9,7 @@
     nextStep: { lesson: Lesson; step: LessonStep };
     nextLesson: { lesson: Lesson };
     getEditorCode: void;
+    backToLessons: void;
   }>();
 
   export let lesson: Lesson | null = null;
@@ -485,17 +486,27 @@
       </div>
     {/if}
 
-    <!-- Step title -->
-    <h2 class="text-lg font-semibold mb-3 flex items-center gap-2">
-      {#if step.id === 'final-project'}
-        🏆
-      {:else if step.exercise}
-        🏋️
-      {:else}
-        📖
-      {/if}
-      {step.title}
-    </h2>
+    <!-- Step title with back button -->
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-lg font-semibold flex items-center gap-2">
+        {#if step.id === 'final-project'}
+          🏆
+        {:else if step.exercise}
+          🏋️
+        {:else}
+          📖
+        {/if}
+        {step.title}
+      </h2>
+      
+      <button 
+        class="btn btn-secondary text-xs"
+        on:click={() => dispatch('backToLessons')}
+        title="Ders listesine dön"
+      >
+        ← Derslere Dön
+      </button>
+    </div>
 
     <!-- Step content -->
     <div class="step-content">

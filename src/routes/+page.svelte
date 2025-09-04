@@ -312,12 +312,17 @@ print("Python öğrenmeye hazır mısın?")
     return getCurrentEditorContent();
   }
 
-  // Load first lesson by default
+  function handleBackToLessons() {
+    // Clear current lesson/step to show lesson navigation
+    currentLesson = null;
+    currentStep = null;
+  }
+
+  // Start with lesson navigation (no lesson pre-selected)
   onMount(() => {
-    if (LESSONS.length > 0) {
-      currentLesson = LESSONS[0];
-      currentStep = LESSONS[0].steps[0] || null;
-    }
+    // Don't auto-select a lesson, let user choose
+    currentLesson = null;
+    currentStep = null;
   });
 </script>
 <!--
@@ -528,7 +533,7 @@ print("Python öğrenmeye hazır mısın?")
       on:pointerup={endLeftDrag}
       on:pointercancel={endLeftDrag}
     >
-      <!-- LESSON CONTENT KART (GLASS) -->
+      <!-- VIDEO KART (GLASS) -->
       <div
         class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
                bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
@@ -543,17 +548,18 @@ print("Python öğrenmeye hazır mısın?")
             linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
-        <div class="relative z-[1] h-full">
-          <LessonContent 
-            lesson={currentLesson}
-            step={currentStep}
-            currentOutput={output}
-            currentEditorCode={getCurrentEditorContent()}
-            on:codeUpdate={handleCodeUpdate}
-            on:exerciseComplete={handleExerciseComplete}
-            on:nextStep={handleNextStep}
-            on:nextLesson={handleNextLesson}
-          />
+        <div class="relative z-[1] p-2 h-full">
+          <video
+            bind:this={videoEl}
+            controls
+            playsinline
+            class="w-full h-full object-contain bg-black rounded-[0.5rem]"
+            aria-label="PyKid tanıtım videosu"
+          >
+            <source src="/videos/example.mp4" type="video/mp4" />
+            <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
+            Tarayıcınız video etiketini desteklemiyor.
+          </video>
         </div>
       </div>
 
@@ -613,12 +619,28 @@ print("Python öğrenmeye hazır mısın?")
           <!-- Tab Content -->
           <div class="flex-1 min-h-0">
             {#if currentView === 'lessons'}
-              <LessonNav 
-                currentLessonId={currentLesson?.id || null}
-                currentStepId={currentStep?.id || null}
-                on:lessonSelect={handleLessonSelect}
-                on:stepSelect={handleStepSelect}
-              />
+              {#if currentLesson && currentStep}
+                <!-- Show lesson content when lesson/step is selected -->
+                <LessonContent 
+                  lesson={currentLesson}
+                  step={currentStep}
+                  currentOutput={output}
+                  currentEditorCode={getCurrentEditorContent()}
+                  on:codeUpdate={handleCodeUpdate}
+                  on:exerciseComplete={handleExerciseComplete}
+                  on:nextStep={handleNextStep}
+                  on:nextLesson={handleNextLesson}
+                  on:backToLessons={handleBackToLessons}
+                />
+              {:else}
+                <!-- Show lesson navigation when no lesson is selected -->
+                <LessonNav 
+                  currentLessonId={currentLesson?.id || null}
+                  currentStepId={currentStep?.id || null}
+                  on:lessonSelect={handleLessonSelect}
+                  on:stepSelect={handleStepSelect}
+                />
+              {/if}
             {:else}
               <div class="h-full p-2">
                 <ChatPanel {getCurrentEditorContent} {getCurrentLessonContext} />
