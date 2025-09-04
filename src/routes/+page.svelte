@@ -612,7 +612,7 @@ print("Python öğrenmeye hazır mısın?")
               class="flex-1 px-3 py-2 text-sm font-medium transition-colors {currentView === 'chat' ? 'bg-white/40 text-blue-700 border-b-2 border-blue-500' : 'text-gray-600 hover:text-gray-800 hover:bg-white/20'}"
               on:click={() => currentView = 'chat'}
             >
-              🤖 Ada Öğretmen
+              👩‍🏫 Ada Öğretmen
             </button>
           </div>
 
