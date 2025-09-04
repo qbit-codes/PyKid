@@ -29,7 +29,6 @@
   // Lesson system state
   let currentLesson: Lesson | null = null;
   let currentStep: LessonStep | null = null;
-  let currentView: 'lessons' | 'chat' = 'lessons'; // Toggle between lesson content and chat
 
   const pyodideReady = usePyodide();
 
@@ -272,15 +271,26 @@ print("Python öğrenmeye hazır mısın?")
   function handleLessonSelect(event: CustomEvent<{ lesson: Lesson }>) {
     const { lesson } = event.detail;
     currentLesson = lesson;
-    currentStep = lesson.steps[0] || null;
-    currentView = 'lessons';
+    const firstStep = lesson.steps[0] || null;
+    currentStep = firstStep;
+    
+    // Load lesson content as comments in editor
+    if (firstStep && editor) {
+      const lessonComments = generateLessonComments(lesson, firstStep);
+      editor.setValue(lessonComments);
+    }
   }
 
   function handleStepSelect(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
     const { lesson, step } = event.detail;
     currentLesson = lesson;
     currentStep = step;
-    currentView = 'lessons';
+    
+    // Load step content as comments in editor
+    if (editor) {
+      const lessonComments = generateLessonComments(lesson, step);
+      editor.setValue(lessonComments);
+    }
   }
 
   function handleCodeUpdate(event: CustomEvent<{ code: string }>) {
@@ -318,12 +328,92 @@ print("Python öğrenmeye hazır mısın?")
     currentStep = null;
   }
 
+  // Generate lesson instructions as Python comments
+  function generateLessonComments(lesson: Lesson, step: LessonStep): string {
+    const comments = [];
+    
+    // Lesson and step title
+    comments.push(`# ========================================`);
+    comments.push(`# ${lesson.title} - ${step.title}`);
+    comments.push(`# ========================================`);
+    comments.push(``);
+    
+    // Step description (clean markdown)
+    const cleanContent = step.content
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+      .replace(/\*(.*?)\*/g, '$1') // Remove italic
+      .replace(/`(.*?)`/g, '$1') // Remove code backticks
+      .replace(/^#+\s*/gm, '') // Remove markdown headers
+      .replace(/^-\s*/gm, '• ') // Convert list items
+      .split('\n')
+      .filter(line => line.trim())
+      .slice(0, 5); // Limit to first 5 lines
+    
+    comments.push(`# Konu:`);
+    cleanContent.forEach(line => {
+      if (line.trim()) {
+        comments.push(`# ${line.trim()}`);
+      }
+    });
+    comments.push(``);
+    
+    // Exercise instructions
+    if (step.exercise) {
+      comments.push(`# 🏋️ Alıştırma: ${step.exercise.title}`);
+      comments.push(`# ${step.exercise.description}`);
+      comments.push(``);
+      
+      // Add hints as comments
+      if (step.exercise.hints && step.exercise.hints.length > 0) {
+        comments.push(`# 💡 İpuçları:`);
+        step.exercise.hints.slice(0, 3).forEach((hint, index) => {
+          comments.push(`# ${index + 1}. ${hint}`);
+        });
+        comments.push(``);
+      }
+    }
+    
+    comments.push(`# Buraya kodunu yaz:`);
+    comments.push(``);
+    
+    // Add starter code if available
+    if (step.exercise?.starterCode && step.exercise.starterCode.trim()) {
+      const starterLines = step.exercise.starterCode.split('\n');
+      starterLines.forEach(line => {
+        comments.push(line);
+      });
+    } else if (step.codeExample) {
+      comments.push(`# Örnek:`);
+      const exampleLines = step.codeExample.split('\n');
+      exampleLines.forEach(line => {
+        comments.push(`# ${line}`);
+      });
+      comments.push(``);
+    }
+    
+    return comments.join('\n');
+  }
+
+  // Lesson selector state
+  let showLessonSelector = false;
+
   // Start with lesson navigation (no lesson pre-selected)
   onMount(() => {
     // Don't auto-select a lesson, let user choose
     currentLesson = null;
     currentStep = null;
   });
+
+  // Keyboard shortcut to open lesson selector
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.ctrlKey && event.key === 'l') {
+      event.preventDefault();
+      showLessonSelector = !showLessonSelector;
+    }
+    if (event.key === 'Escape') {
+      showLessonSelector = false;
+    }
+  }
 </script>
 <!--
 <style>
@@ -512,6 +602,9 @@ print("Python öğrenmeye hazır mısın?")
 
 </style>
 
+<!-- Keyboard event handler -->
+<svelte:window on:keydown={handleKeydown} />
+
 {#await pyodideReady}
   <div>Pyodide yükleniyor…</div>
 {:then py}
@@ -584,13 +677,13 @@ print("Python öğrenmeye hazır mısın?")
         }}
       ></div>
 
-      <!-- LESSONS/CHAT TABBED KART (GLASS) -->
+      <!-- CHAT PANEL (ADA TEACHER) -->
       <div
         class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
                bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
                [backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
                [-webkit-backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
-               overflow-hidden"
+               overflow-hidden p-2"
       >
         <div
           class="pointer-events-none absolute inset-0 [border-radius:inherit] mix-blend-soft-light z-0"
@@ -598,55 +691,8 @@ print("Python öğrenmeye hazır mısın?")
             linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
-        
-        <div class="relative z-[1] h-full flex flex-col">
-          <!-- Tab Navigation -->
-          <div class="flex border-b border-[var(--line)] bg-white/20">
-            <button
-              class="flex-1 px-3 py-2 text-sm font-medium transition-colors {currentView === 'lessons' ? 'bg-white/40 text-blue-700 border-b-2 border-blue-500' : 'text-gray-600 hover:text-gray-800 hover:bg-white/20'}"
-              on:click={() => currentView = 'lessons'}
-            >
-              📚 Dersler
-            </button>
-            <button
-              class="flex-1 px-3 py-2 text-sm font-medium transition-colors {currentView === 'chat' ? 'bg-white/40 text-blue-700 border-b-2 border-blue-500' : 'text-gray-600 hover:text-gray-800 hover:bg-white/20'}"
-              on:click={() => currentView = 'chat'}
-            >
-              👩‍🏫 Ada Öğretmen
-            </button>
-          </div>
-
-          <!-- Tab Content -->
-          <div class="flex-1 min-h-0">
-            {#if currentView === 'lessons'}
-              {#if currentLesson && currentStep}
-                <!-- Show lesson content when lesson/step is selected -->
-                <LessonContent 
-                  lesson={currentLesson}
-                  step={currentStep}
-                  currentOutput={output}
-                  currentEditorCode={getCurrentEditorContent()}
-                  on:codeUpdate={handleCodeUpdate}
-                  on:exerciseComplete={handleExerciseComplete}
-                  on:nextStep={handleNextStep}
-                  on:nextLesson={handleNextLesson}
-                  on:backToLessons={handleBackToLessons}
-                />
-              {:else}
-                <!-- Show lesson navigation when no lesson is selected -->
-                <LessonNav 
-                  currentLessonId={currentLesson?.id || null}
-                  currentStepId={currentStep?.id || null}
-                  on:lessonSelect={handleLessonSelect}
-                  on:stepSelect={handleStepSelect}
-                />
-              {/if}
-            {:else}
-              <div class="h-full p-2">
-                <ChatPanel {getCurrentEditorContent} {getCurrentLessonContext} />
-              </div>
-            {/if}
-          </div>
+        <div class="relative z-[1] h-full">
+          <ChatPanel {getCurrentEditorContent} {getCurrentLessonContext} />
         </div>
       </div>
     </div>
@@ -753,6 +799,13 @@ print("Python öğrenmeye hazır mısın?")
             >
               Temizle
             </button>
+            <button
+              class="px-3 py-1.5 rounded-md border border-[var(--line)] bg-white/70 hover:bg-white"
+              on:click={() => showLessonSelector = !showLessonSelector}
+              title="Ders seç (Ctrl+L)"
+            >
+              📚 Dersler
+            </button>
             
             <!-- User info and logout -->
             <div class="ml-auto flex items-center gap-2">
@@ -776,6 +829,75 @@ print("Python öğrenmeye hazır mısın?")
       </div>
     </div>
   </div>
+
+  <!-- Lesson Selector Modal -->
+  {#if showLessonSelector}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={() => showLessonSelector = false}>
+      <div class="bg-white rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-auto" on:click|stopPropagation>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-gray-800">📚 Ders Seçin</h2>
+          <button 
+            class="text-gray-500 hover:text-gray-700 text-xl"
+            on:click={() => showLessonSelector = false}
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          {#each LESSONS as lesson}
+            <div class="border border-gray-200 rounded-lg p-4">
+              <h3 class="font-semibold text-gray-800 mb-2">{lesson.title}</h3>
+              <p class="text-sm text-gray-600 mb-3">{lesson.description}</p>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {#each lesson.steps as step, index}
+                  <button
+                    class="text-left p-2 rounded border border-gray-200 hover:bg-gray-50 transition-colors text-sm"
+                    on:click={() => {
+                      handleStepSelect({ detail: { lesson, step } });
+                      showLessonSelector = false;
+                    }}
+                  >
+                    <span class="text-xs text-gray-500">Adım {index + 1}:</span>
+                    <br>
+                    {step.title}
+                  </button>
+                {/each}
+                
+                {#if lesson.finalProject}
+                  <button
+                    class="text-left p-2 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors text-sm"
+                    on:click={() => {
+                      handleStepSelect({ detail: { 
+                        lesson, 
+                        step: { 
+                          id: 'final-project', 
+                          title: lesson.finalProject?.title || 'Final Project', 
+                          content: lesson.finalProject?.description || '',
+                          exercise: lesson.finalProject 
+                        } 
+                      } });
+                      showLessonSelector = false;
+                    }}
+                  >
+                    <span class="text-xs text-purple-600">Final Proje:</span>
+                    <br>
+                    🎯 {lesson.finalProject.title}
+                  </button>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+        
+        <div class="mt-4 text-sm text-gray-500 text-center">
+          <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl+L</kbd> ile açabilirsin
+        </div>
+      </div>
+    </div>
+  {/if}
+
 {:catch err}
   <div class="text-[#b00]">Pyodide başlatılamadı: {String(err)}</div>
 {/await}
