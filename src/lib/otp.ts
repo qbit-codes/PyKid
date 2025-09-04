@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 import { statements, cleanupDatabase } from './db.js';
+import { IletiMerkeziClient } from '@iletimerkezi/iletimerkezi-node';
+import { env } from '$env/dynamic/private';
 
 export interface OTPResult {
   success: boolean;
@@ -57,6 +59,59 @@ function checkRateLimit(phoneNumber: string, requestType: string): boolean {
   return rateLimit ? rateLimit.request_count <= config.maxAttempts : true;
 }
 
+async function sendSMS(phoneNumber: string, message: string): Promise<{ success: boolean; message: string }> {
+  try {
+    // Check if SMS credentials are configured
+    const apiKey = env.ILETIMERKEZI_API_KEY;
+    const apiHash = env.ILETIMERKEZI_API_HASH;
+    const sender = env.ILETIMERKEZI_SENDER;
+    
+    if (!apiKey || !apiHash) {
+      console.warn('İletimerkezi SMS credentials not configured');
+      return {
+        success: false,
+        message: 'SMS servisi yapılandırılmamış'
+      };
+    }
+
+    if (!sender) {
+      console.warn('Iletimerkezi SENDER not configured');
+      return {
+        success: false,
+        message: 'SMS servisi yapılandırılmamış'
+      };
+    }
+
+    const client = new IletiMerkeziClient(apiKey, apiHash, sender);
+    
+    // İletimerkezi expects Turkish numbers without country code (5051234567 format)
+    const smsPhoneNumber = phoneNumber.startsWith('90') ? phoneNumber.substring(2) : phoneNumber;
+    
+    const result = await client.sms().disableIysConsent().send(smsPhoneNumber, message);
+
+    // Check if SMS was sent successfully
+    if (result.statusCode === 200 && result.data?.status?.code === 200) {
+      return {
+        success: true,
+        message: 'SMS gönderildi'
+      };
+    } else {
+      console.error('SMS sending failed:', result);
+      return {
+        success: false,
+        message: `SMS gönderilemedi: ${result.data?.status?.message || 'Bilinmeyen hata'}`
+      };
+    }
+
+  } catch (error: any) {
+    console.error('SMS sending error:', error);
+    return {
+      success: false,
+      message: 'SMS gönderilemedi: ' + error.message
+    };
+  }
+}
+
 export async function sendOTP(name: string, phoneNumber: string): Promise<OTPResult> {
   try {
     // Clean up old records periodically
@@ -98,12 +153,23 @@ export async function sendOTP(name: string, phoneNumber: string): Promise<OTPRes
     // Save to database
     statements.insertOTP.run(normalizedPhone, name.trim(), otpCode, now, expiresAt);
 
-    // TODO: Send SMS using iletimerkezi or another SMS provider
-    console.log(`OTP for ${normalizedPhone}: ${otpCode}`);
+    // Send SMS with OTP
+    const smsMessage = `PyKid doğrulama kodunuz: ${otpCode}\n\nKod 10 dakika geçerlidir. Kodu kimseyle paylaşmayın.`;
     
-    // In development, we'll just log it. In production, implement SMS sending
-    if (process.env.NODE_ENV === 'development') {
+    const smsResult = await sendSMS(normalizedPhone, smsMessage);
+    
+    // In development, always log the OTP
+    if (env.NODE_ENV === 'development') {
       console.log(`[DEV] OTP Code for ${name} (${normalizedPhone}): ${otpCode}`);
+    }
+    
+    // If SMS sending fails in production, we might still want to continue
+    if (!smsResult.success && env.NODE_ENV === 'production') {
+      console.error('SMS sending failed but OTP saved to database');
+      return {
+        success: false,
+        message: 'SMS gönderilemedi. Lütfen daha sonra tekrar deneyin.'
+      };
     }
 
     return {
