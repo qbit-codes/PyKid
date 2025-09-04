@@ -32,10 +32,30 @@ print("Python öğrenmeye hazır mısın?")
 `;
 
   // ===== Intro Overlay (tam ekran video) =====
-  let introOpen = true;                         // overlay açık mı
+  let introOpen = false;                         // overlay açık mı
   let introVideoEl: HTMLVideoElement;            // overlay içi video
   let introBoxEl: HTMLDivElement;                // overlay container (animasyon hedefi)
-  const INTRO_LS_KEY = 'pysk:intro:played:v1';   // tek seferlik anahtar
+  //const INTRO_LS_KEY = 'pysk:intro:played:v1';   // tek seferlik anahtar
+  // ---- Intro anahtarını kullanıcıya göre üret ----
+  type UserLike = { id?: string; email?: string; name?: string } | undefined | null;
+
+  const INTRO_KEY_PREFIX = 'pysk:intro:played:v1:';          // sürümleyebilirsin
+  const USE_SESSION_STORAGE = false;                          // true yaparsan oturum bazlı olur
+
+  function storage() { return USE_SESSION_STORAGE ? sessionStorage : localStorage; }
+
+  function makeIntroKey(u: UserLike) {
+    // Hesaba göre ayır: id > email > name > 'anon'
+    const id = (u?.id || u?.email || u?.name || 'anon').toString();
+    return INTRO_KEY_PREFIX + id;
+  }
+
+  // data.user değişince reactive güncelle
+  let INTRO_LS_KEY = makeIntroKey(data.user);
+  $: INTRO_LS_KEY = makeIntroKey(data.user);
+
+
+
   let introStallTimer: ReturnType<typeof setTimeout> | null = null;
   const STALL_MS = 12_000;                       // ilerleme durursa güvenli kapan
   const CONTINUE_IN_PANE = true;                 // küçük pencerede kaldığı yerden devam et
@@ -46,32 +66,33 @@ print("Python öğrenmeye hazır mısın?")
   }
 
   async function maybeRunIntro() {
-    // Kullanıcı varsa ve bu oturumda intro gösterilmediyse
-    if (data.user && !localStorage.getItem(INTRO_LS_KEY)) {
-      introOpen = true;
-      await tick(); // overlay DOM'u gelsin
+  // ?intro=1 ile zorla gösterme (debug/test)
+  const qs = new URLSearchParams(location.search);
+  const force = qs.get('intro') === '1';
+  if (force) storage().removeItem(INTRO_LS_KEY);
 
-      try {
-        if (introVideoEl) {
-          introVideoEl.muted = true;      // autoplay güvenli
-          introVideoEl.playsInline = true as any;
-          await introVideoEl.play().catch(() => {});
-        }
-      } catch {}
+  // Kullanıcı varsa ve bu kullanıcı için daha önce oynatılmadıysa
+  if (data.user && (!storage().getItem(INTRO_LS_KEY) || force)) {
+    introOpen = true;
+    await tick();
 
-      // Sonuna kadar oynat: timer yok, sadece stall guard
-      armStallGuard();
-      introVideoEl?.addEventListener('timeupdate', armStallGuard);
+    try {
+      if (introVideoEl) {
+        introVideoEl.muted = true;
+        (introVideoEl as any).playsInline = true;
+        await introVideoEl.play().catch(() => {});
+      }
+    } catch {}
+
+    // Sonuna kadar oynatma: yalnızca emniyet kemeri istersen armStallGuard() çağır
+    armStallGuard();                         // İstersen kaldır
+    introVideoEl?.addEventListener('timeupdate', armStallGuard);
     }
   }
-
   function finishIntro() {
     introOpen = false;
-    localStorage.setItem(INTRO_LS_KEY, '1');
-    if (introStallTimer) {
-      clearTimeout(introStallTimer);
-      introStallTimer = null;
-    }
+    storage().setItem(INTRO_LS_KEY, '1');     // <-- burada storage() kullanıyoruz
+    if (introStallTimer) { clearTimeout(introStallTimer); introStallTimer = null; }
     introVideoEl?.removeEventListener('timeupdate', armStallGuard);
   }
 
@@ -123,20 +144,29 @@ print("Python öğrenmeye hazır mısın?")
   }
   // ===== /Intro Overlay =====
 
-  // Logout function
+  function clearAllIntroKeys() {
+    const s = storage();
+    const toDelete: string[] = [];
+    for (let i = 0; i < s.length; i++) {
+      const k = s.key(i);
+      if (k && k.startsWith(INTRO_KEY_PREFIX)) toDelete.push(k);
+    }
+    toDelete.forEach(k => s.removeItem(k));
+  }
+
   async function handleLogout() {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-      localStorage.removeItem('user');
-      goto('/login');
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch (error) {
       console.error('Logout error:', error);
+    } finally {
+      // Lokal verileri temizle
+      localStorage.removeItem('user');
+      clearAllIntroKeys();           // <-- tüm hesaplara ait intro izlerini sil
       goto('/login');
     }
   }
+
 
   // ---- Split ölçüleri (persist edilir) ----
   let leftPx = 380;   // sol panel (Video+Chat sütunu) px genişlik
