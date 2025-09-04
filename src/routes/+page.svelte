@@ -596,7 +596,10 @@ function onReplay(ev: Event) {
         // Auto-progress to next step/lesson if successful
         if (isSuccessful) {
           await handleAutoProgression();
+
+          fireReplay(); // sadece event test: UI yok 20:51
         }
+        await handleAutoProgression();
       }
     }
   }
@@ -979,6 +982,25 @@ function armUnmuteOnce() {
   // iOS’ta native UI window event’i tüketirse garanti olsun diye:
   videoEl?.addEventListener('click', handler, { once: true, passive: true });
 }
+
+// --- Replay test ayarları --- 20:51
+const REPLAY_ON_SUCCESS =
+  new URLSearchParams(location.search).get('replay') === '1'; // ?replay=1 ise başarıda otomatik tetikle
+
+function fireReplay(startAt?: number, unmute = false) {
+  const detail = {
+    startAt: typeof startAt === 'number' ? startAt : (videoEl?.currentTime ?? 0),
+    unmute
+  };
+  window.dispatchEvent(new CustomEvent('pysk:intro:replay', { detail }));
+
+  // (Opsiyonel) basit sayaç/log: sadece test amaçlı
+  const K = 'pysk:replay:fireCount';
+  const n = Number(localStorage.getItem(K) || '0') + 1;
+  localStorage.setItem(K, String(n));
+  console.debug('[pysk] replay fired', detail, 'count=', n);
+}
+
 
 </script>
 
