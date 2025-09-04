@@ -24,7 +24,7 @@
   } from '$lib/lessons';
 
   export let data: PageData;
-
+  const K_FAIL_STREAK = 'pysk:failStreak';
   let shellEl: HTMLDivElement;   // dış grid
   let pageEl: HTMLDivElement;    // sağ taraftaki (editor+konsol) grid
   let editorEl: HTMLDivElement;
@@ -35,6 +35,8 @@
   let videoEl: HTMLVideoElement;
   let isMuted = false;    // gerçek ses durumunu yansıt
 
+  // === Stall guard ayarı ===
+  const ENABLE_STALL_GUARD = false; // Video bitene kadar overlay kalsın
 
 async function tryAutoplayWithAudio() {
   if (!videoEl) return;
@@ -104,10 +106,11 @@ print("Python öğrenmeye hazır mısın?")
 
 
   let introStallTimer: ReturnType<typeof setTimeout> | null = null;
-  const STALL_MS = 12_000;                       // ilerleme durursa güvenli kapan
+  const STALL_MS = 20_00;                       // ilerleme durursa güvenli kapan
   const CONTINUE_IN_PANE = true;                 // küçük pencerede kaldığı yerden devam et
 
   function armStallGuard() {
+    if (!ENABLE_STALL_GUARD) return; // <-- tek satır koruma
     if (introStallTimer) clearTimeout(introStallTimer);
     introStallTimer = setTimeout(() => endIntroScale(), STALL_MS);
   }
@@ -132,8 +135,14 @@ print("Python öğrenmeye hazır mısın?")
     } catch {}
 
     // Sonuna kadar oynatma: yalnızca emniyet kemeri istersen armStallGuard() çağır
-    armStallGuard();                         // İstersen kaldır
-    introVideoEl?.addEventListener('timeupdate', armStallGuard);
+    /*
+    armStallGuard();                         
+    introVideoEl?.addEventListener('timeupdate', armStallGuard);*/
+
+      if (ENABLE_STALL_GUARD) {
+        armStallGuard();
+        introVideoEl?.addEventListener('timeupdate', armStallGuard);
+      }
     }
   }
   function finishIntro() {
@@ -193,7 +202,7 @@ print("Python öğrenmeye hazır mısın?")
   //************** Intro Event Handlers **************//
   // ---- Event ile tekrar oynatma: panelden TAM EKRANA büyüt, bitince panele küçült ----
 type OpenIntroOpts = { grow?: boolean; startAt?: number; unmute?: boolean; ignoreStorage?: boolean };
-
+/*
 async function openIntro(opts: OpenIntroOpts = {}) {
   // grow: panelden tam ekrana büyüt
   // startAt: saniye cinsinden başlat
@@ -233,15 +242,98 @@ async function openIntro(opts: OpenIntroOpts = {}) {
         ],
         { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
       );
-    } catch { /* no-op */ }
+    } catch {  }
   }
 
   // Videoyu başlat
-  try { await introVideoEl?.play(); } catch { /* mobilde gesture gerekebilir */ }
+  try { await introVideoEl?.play(); } catch { }
 
   // Sonuna kadar oynat, ama takılırsa emniyet kemeri dursun
+  //armStallGuard();
+  //introVideoEl?.addEventListener('timeupdate', armStallGuard);
+
+  if (ENABLE_STALL_GUARD) {
   armStallGuard();
   introVideoEl?.addEventListener('timeupdate', armStallGuard);
+}
+}*/
+async function openIntro(opts: OpenIntroOpts = {}) {
+  // grow: panelden tam ekrana büyüt
+  // startAt: saniye cinsinden başlangıç
+  // unmute: sesi açmayı dener (tarayıcı gesture isteyebilir)
+  // ignoreStorage: true ise LS "oynatıldı" kontrolünü yok say
+  const { grow = true, startAt = 0, unmute = false, ignoreStorage = true } = opts;
+
+  // Tek-sefer kontrolü (replay değilse)
+  if (!ignoreStorage && storage().getItem(INTRO_LS_KEY)) return;
+
+  // Panel videosu oynuyorsa sustur/durdur (iki ses karışmasın)
+  try { videoEl?.pause(); } catch {}
+
+  introOpen = true;
+  await tick(); // DOM hazır
+
+  const v = introVideoEl;
+  if (v) {
+    // --- ÖNEMLİ: Daima sessiz başlat (autoplay policy için güvenli yol) ---
+    v.muted = true;
+    v.setAttribute('muted', '');  // iOS Safari için gerekli
+    (v as any).playsInline = true;
+
+    const applyStartAndPlay = () => {
+      try { v.currentTime = Math.max(0, startAt); } catch {}
+
+      v.play().catch(() => {}); // mobilde gesture gerekebilir
+
+      // --- Buradan itibaren: programatik unmute denemeleri (Chromium ağırlıklı) ---
+      // 1) Microtask/next tick (play çağrısının hemen ardından)
+      setTimeout(() => tryForceUnmute(v), 0);
+
+      // 2) playing event'inde (bazı motorlar burada sesi açmaya izin veriyor)
+      const onPlaying = () => tryForceUnmute(v);
+      v.addEventListener('playing', onPlaying, { once: true });
+
+      // 3) Küçük gecikmeyle yedek deneme (ör. codec init gecikirse)
+      setTimeout(() => { if (v.muted) tryForceUnmute(v); }, 800);
+
+      if (ENABLE_STALL_GUARD) {
+        armStallGuard();
+        v.addEventListener('timeupdate', armStallGuard);
+      }
+    };
+
+    // Metadata hazırsa hemen seek; değilse hazır olunca yap
+    if (v.readyState >= 1) {
+      applyStartAndPlay();
+    } else {
+      const onMeta = () => {
+        v.removeEventListener('loadedmetadata', onMeta);
+        applyStartAndPlay();
+      };
+      v.addEventListener('loadedmetadata', onMeta, { once: true });
+    }
+  }
+
+  // Panel videosunun boyutundan TAM ekrana büyütme animasyonu (opsiyonel)
+  if (grow && introBoxEl && videoEl) {
+    try {
+      const t  = videoEl.getBoundingClientRect();
+      const sw = window.innerWidth;
+      const sh = window.innerHeight;
+      const dx = (t.left + t.width  / 2) - (sw / 2);
+      const dy = (t.top  + t.height / 2) - (sh / 2);
+      const sx = t.width  / sw;
+      const sy = t.height / sh;
+
+      (introBoxEl as HTMLElement).animate(
+        [
+          { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.98 },
+          { transform: 'translate(0,0) scale(1)', opacity: 1 }
+        ],
+        { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+      );
+    } catch { /* no-op */ }
+  }
 }
 
 // Pencereden tetiklenecek event handler
@@ -595,11 +687,26 @@ function onReplay(ev: Event) {
         
         // Auto-progress to next step/lesson if successful
         if (isSuccessful) {
-          await handleAutoProgression();
+          localStorage.setItem(K_FAIL_STREAK, '0');
 
-          fireReplay(); // sadece event test: UI yok 20:51
+          failReplayTriggeredForThisStreak = false;          // yeni bir seriye başlıyoruz
+          
+          fireReplay(); 
+          await handleAutoProgression();
         }
-        await handleAutoProgression();
+        else
+        {
+          // Başarısızlık: ardışık fail say
+          const s = (parseInt(localStorage.getItem(K_FAIL_STREAK) || '0', 10) || 0) + 1;
+          localStorage.setItem(K_FAIL_STREAK, String(s));
+
+          // 3'e ulaşınca tetikle ve sıfırla
+          if (s >= 3) {
+            fireReplay(); // sadece event
+            //introOpen=true
+            localStorage.setItem(K_FAIL_STREAK, '0'); // yeni seri başlar
+          }
+        }
       }
     }
   }
@@ -986,20 +1093,35 @@ function armUnmuteOnce() {
 // --- Replay test ayarları --- 20:51
 const REPLAY_ON_SUCCESS =
   new URLSearchParams(location.search).get('replay') === '1'; // ?replay=1 ise başarıda otomatik tetikle
+// 3 fail sonrası da denemek için: ?replayfail=1
+const REPLAY_ON_FAIL3   = new URLSearchParams(location.search).get('replayfail') === '1';
+// Fail serisi için tek seferlik tetikleme koruması
+let failReplayTriggeredForThisStreak = false;
 
 function fireReplay(startAt?: number, unmute = false) {
   const detail = {
-    startAt: typeof startAt === 'number' ? startAt : (videoEl?.currentTime ?? 0),
+    // "ilk defa gibi" => default 0’dan başlat
+    startAt: typeof startAt === 'number' ? startAt : 0,
     unmute
   };
   window.dispatchEvent(new CustomEvent('pysk:intro:replay', { detail }));
 
-  // (Opsiyonel) basit sayaç/log: sadece test amaçlı
   const K = 'pysk:replay:fireCount';
   const n = Number(localStorage.getItem(K) || '0') + 1;
   localStorage.setItem(K, String(n));
   console.debug('[pysk] replay fired', detail, 'count=', n);
 }
+
+function tryForceUnmute(v: HTMLVideoElement) {
+  try {
+    v.muted = false;
+    v.removeAttribute('muted');
+    v.volume = 1;
+    // Bazı motorlarda unmute sonrası play tekrar gerekebilir:
+    v.play().catch(() => {});
+  } catch {}
+}
+
 
 
 </script>
@@ -1073,38 +1195,51 @@ function fireReplay(startAt?: number, unmute = false) {
 {:then py}
 
   <!-- ===== Intro Overlay (tam ekran) ===== -->
-  {#if introOpen}
-    <div
-      class="fixed inset-0 z-[1000] grid place-items-center bg-black/80
-             [backdrop-filter:blur(6px)] [-webkit-backdrop-filter:blur(6px)]"
-      bind:this={introBoxEl}
-    >
-      
-      <video
-        bind:this={introVideoEl}
-        src="/videos/example.mp4"
-        class="w-[min(92vw,1200px)] h-[min(92vh,680px)] object-contain
-               rounded-[0.6rem] shadow-[0_28px_80px_rgba(0,0,0,.45)]"
-        autoplay
-        
-        playsinline
-        on:ended={endIntroScale}
-        on:stalled={() => armStallGuard()}
-        on:error={() => endIntroScale()}
-        on:loadedmetadata={() => introVideoEl?.play().catch(()=>{})}
-      ></video>
+  <!-- ===== Intro Overlay (tam ekran) ===== -->
+{#if introOpen}
+  <div
+    class="fixed inset-0 z-[1000] grid place-items-center bg-black/80
+           [backdrop-filter:blur(6px)] [-webkit-backdrop-filter:blur(6px)]"
+    bind:this={introBoxEl}
+  >
+    <video
+      bind:this={introVideoEl}
+      src="/videos/example.mp4"
+      class="w-[min(92vw,1200px)] h-[min(92vh,680px)] object-contain
+             rounded-[0.6rem] shadow-[0_28px_80px_rgba(0,0,0,.45)]"
+      autoplay
+      on:stalled={() => { if (ENABLE_STALL_GUARD) armStallGuard(); }}
+      playsinline
+      on:ended={endIntroScale}
+      on:error={() => endIntroScale()}
+      on:loadedmetadata={() => introVideoEl?.play().catch(()=>{})}
+    ></video>
 
+    {#if introVideoEl?.muted}
+      <!-- 🔊 SES AÇ butonu: video muted ise görünür -->
       <button
-        class="absolute top-4 right-4 px-3 py-1.5 rounded-md border border-white/30
+        class="absolute top-4 right-20 px-3 py-1.5 rounded-md border border-white/30
                text-white/90 bg-white/10 hover:bg-white/20"
-        on:click={endIntroScale}
-        aria-label="Geç"
-        title="Geç"
+        on:click={() => { introVideoEl && tryForceUnmute(introVideoEl); }}
+        aria-label="Sesli oynat"
+        title="Sesli oynat"
       >
-        Geç
+        🔊 Ses Aç
       </button>
-    </div>
-  {/if}
+    {/if}
+
+    <button
+      class="absolute top-4 right-4 px-3 py-1.5 rounded-md border border-white/30
+             text-white/90 bg-white/10 hover:bg-white/20"
+      on:click={endIntroScale}
+      aria-label="Geç"
+      title="Geç"
+    >
+      Geç
+    </button>
+  </div>
+{/if}
+
   <!-- ===== /Intro Overlay ===== -->
 
   <!-- SHELL -->
