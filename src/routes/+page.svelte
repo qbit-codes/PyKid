@@ -3,8 +3,12 @@
   import { onMount, onDestroy } from 'svelte';
   import { usePyodide } from '$lib/pyodide';
   import ChatPanel from '$lib/ChatPanel.svelte';
+  import LessonNav from '$lib/LessonNav.svelte';
+  import LessonContent from '$lib/LessonContent.svelte';
   import { goto } from '$app/navigation';
   import type { PageData } from './$types';
+  import type { Lesson, LessonStep } from '$lib/lessons';
+  import { LESSONS } from '$lib/lessons';
 
   export let data: PageData;
 
@@ -21,6 +25,11 @@
   let monacoLib: any = null;
   let output = '';
   let running = false;
+
+  // Lesson system state
+  let currentLesson: Lesson | null = null;
+  let currentStep: LessonStep | null = null;
+  let currentView: 'lessons' | 'chat' = 'lessons'; // Toggle between lesson content and chat
 
   const pyodideReady = usePyodide();
 
@@ -245,6 +254,71 @@ print("Python öğrenmeye hazır mısın?")
     if (!editor) return '';
     return editor.getValue() || '';
   }
+
+  // Function to get current lesson context for Ada Teacher
+  function getCurrentLessonContext(): string {
+    if (!currentLesson || !currentStep) return '';
+    
+    const lessonInfo = `Öğrenci şu anda "${currentLesson.title}" dersinde "${currentStep.title}" adımında. `;
+    const objective = currentLesson.objectives.length > 0 ? `Dersin hedefleri: ${currentLesson.objectives.join(', ')}. ` : '';
+    const stepContent = currentStep.exercise ? 
+      `Bu adımda "${currentStep.exercise.title}" alıştırmasını yapıyor. Alıştırma: ${currentStep.exercise.description}` :
+      `Bu adımda teori öğreniyor: ${currentStep.content.substring(0, 200)}...`;
+    
+    return lessonInfo + objective + stepContent;
+  }
+
+  // Lesson system event handlers
+  function handleLessonSelect(event: CustomEvent<{ lesson: Lesson }>) {
+    const { lesson } = event.detail;
+    currentLesson = lesson;
+    currentStep = lesson.steps[0] || null;
+    currentView = 'lessons';
+  }
+
+  function handleStepSelect(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
+    const { lesson, step } = event.detail;
+    currentLesson = lesson;
+    currentStep = step;
+    currentView = 'lessons';
+  }
+
+  function handleCodeUpdate(event: CustomEvent<{ code: string }>) {
+    const { code } = event.detail;
+    if (editor) {
+      editor.setValue(code);
+    }
+  }
+
+  function handleExerciseComplete(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
+    // Could show success message or confetti here
+    console.log('Exercise completed!', event.detail);
+  }
+
+  function handleNextStep(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
+    const { lesson, step } = event.detail;
+    currentLesson = lesson;
+    currentStep = step;
+  }
+
+  function handleNextLesson(event: CustomEvent<{ lesson: Lesson }>) {
+    const { lesson } = event.detail;
+    currentLesson = lesson;
+    currentStep = lesson.steps[0] || null;
+  }
+
+  function handleGetEditorCode(event: CustomEvent<void>) {
+    // Return current editor code to lesson component
+    return getCurrentEditorContent();
+  }
+
+  // Load first lesson by default
+  onMount(() => {
+    if (LESSONS.length > 0) {
+      currentLesson = LESSONS[0];
+      currentStep = LESSONS[0].steps[0] || null;
+    }
+  });
 </script>
 <!--
 <style>
@@ -454,7 +528,7 @@ print("Python öğrenmeye hazır mısın?")
       on:pointerup={endLeftDrag}
       on:pointercancel={endLeftDrag}
     >
-      <!-- VIDEO KART (GLASS) -->
+      <!-- LESSON CONTENT KART (GLASS) -->
       <div
         class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
                bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
@@ -469,18 +543,17 @@ print("Python öğrenmeye hazır mısın?")
             linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
-        <div class="relative z-[1] p-2 h-full">
-          <video
-            bind:this={videoEl}
-            controls
-            playsinline
-            class="w-full h-full object-contain bg-black rounded-[0.5rem]"
-            aria-label="PyKid tanıtım videosu"
-          >
-            <source src="/videos/example.mp4" type="video/mp4" />
-            <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
-            Tarayıcınız video etiketini desteklemiyor.
-          </video>
+        <div class="relative z-[1] h-full">
+          <LessonContent 
+            lesson={currentLesson}
+            step={currentStep}
+            currentOutput={output}
+            currentEditorCode={getCurrentEditorContent()}
+            on:codeUpdate={handleCodeUpdate}
+            on:exerciseComplete={handleExerciseComplete}
+            on:nextStep={handleNextStep}
+            on:nextLesson={handleNextLesson}
+          />
         </div>
       </div>
 
@@ -505,13 +578,13 @@ print("Python öğrenmeye hazır mısın?")
         }}
       ></div>
 
-      <!-- CHAT KART (GLASS) -->
+      <!-- LESSONS/CHAT TABBED KART (GLASS) -->
       <div
         class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
                bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
                [backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
                [-webkit-backdrop-filter:saturate(160%)_blur(var(--glass-blur))]
-               overflow-hidden p-2"
+               overflow-hidden"
       >
         <div
           class="pointer-events-none absolute inset-0 [border-radius:inherit] mix-blend-soft-light z-0"
@@ -519,8 +592,39 @@ print("Python öğrenmeye hazır mısın?")
             linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
-        <div class="relative z-[1] h-full">
-          <ChatPanel {getCurrentEditorContent} />
+        
+        <div class="relative z-[1] h-full flex flex-col">
+          <!-- Tab Navigation -->
+          <div class="flex border-b border-[var(--line)] bg-white/20">
+            <button
+              class="flex-1 px-3 py-2 text-sm font-medium transition-colors {currentView === 'lessons' ? 'bg-white/40 text-blue-700 border-b-2 border-blue-500' : 'text-gray-600 hover:text-gray-800 hover:bg-white/20'}"
+              on:click={() => currentView = 'lessons'}
+            >
+              📚 Dersler
+            </button>
+            <button
+              class="flex-1 px-3 py-2 text-sm font-medium transition-colors {currentView === 'chat' ? 'bg-white/40 text-blue-700 border-b-2 border-blue-500' : 'text-gray-600 hover:text-gray-800 hover:bg-white/20'}"
+              on:click={() => currentView = 'chat'}
+            >
+              🤖 Ada Öğretmen
+            </button>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="flex-1 min-h-0">
+            {#if currentView === 'lessons'}
+              <LessonNav 
+                currentLessonId={currentLesson?.id || null}
+                currentStepId={currentStep?.id || null}
+                on:lessonSelect={handleLessonSelect}
+                on:stepSelect={handleStepSelect}
+              />
+            {:else}
+              <div class="h-full p-2">
+                <ChatPanel {getCurrentEditorContent} {getCurrentLessonContext} />
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
     </div>
