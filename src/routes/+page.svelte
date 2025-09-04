@@ -5,6 +5,7 @@
   import ChatPanel from '$lib/ChatPanel.svelte';
   import { goto } from '$app/navigation';
   import type { PageData } from './$types';
+  import { tick } from 'svelte';
 
   export let data: PageData;
 
@@ -30,23 +31,109 @@ print("Merhaba ${data.user?.name || 'Kullanıcı'}!")
 print("Python öğrenmeye hazır mısın?")
 `;
 
+  // ===== Intro Overlay (tam ekran video) =====
+  let introOpen = true;                         // overlay açık mı
+  let introVideoEl: HTMLVideoElement;            // overlay içi video
+  let introBoxEl: HTMLDivElement;                // overlay container (animasyon hedefi)
+  const INTRO_LS_KEY = 'pysk:intro:played:v1';   // tek seferlik anahtar
+  let introStallTimer: ReturnType<typeof setTimeout> | null = null;
+  const STALL_MS = 12_000;                       // ilerleme durursa güvenli kapan
+  const CONTINUE_IN_PANE = true;                 // küçük pencerede kaldığı yerden devam et
+
+  function armStallGuard() {
+    if (introStallTimer) clearTimeout(introStallTimer);
+    introStallTimer = setTimeout(() => endIntroScale(), STALL_MS);
+  }
+
+  async function maybeRunIntro() {
+    // Kullanıcı varsa ve bu oturumda intro gösterilmediyse
+    if (data.user && !localStorage.getItem(INTRO_LS_KEY)) {
+      introOpen = true;
+      await tick(); // overlay DOM'u gelsin
+
+      try {
+        if (introVideoEl) {
+          introVideoEl.muted = true;      // autoplay güvenli
+          introVideoEl.playsInline = true as any;
+          await introVideoEl.play().catch(() => {});
+        }
+      } catch {}
+
+      // Sonuna kadar oynat: timer yok, sadece stall guard
+      armStallGuard();
+      introVideoEl?.addEventListener('timeupdate', armStallGuard);
+    }
+  }
+
+  function finishIntro() {
+    introOpen = false;
+    localStorage.setItem(INTRO_LS_KEY, '1');
+    if (introStallTimer) {
+      clearTimeout(introStallTimer);
+      introStallTimer = null;
+    }
+    introVideoEl?.removeEventListener('timeupdate', armStallGuard);
+  }
+
+  function endIntroScale() {
+    if (!introOpen) return;
+
+    // Hedef: sol paneldeki kalıcı video (videoEl)
+    if (introBoxEl && videoEl) {
+      try {
+        const t = videoEl.getBoundingClientRect();
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+
+        const dx = (t.left + t.width / 2) - (sw / 2);
+        const dy = (t.top  + t.height / 2) - (sh / 2);
+        const sx = t.width / sw;
+        const sy = t.height / sh;
+
+        const anim = (introBoxEl as HTMLElement).animate(
+          [
+            { transform: 'translate(0,0) scale(1)', opacity: 1 },
+            { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.98 }
+          ],
+          { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
+        );
+
+        anim.onfinish = async () => {
+          // Kaldığı yerden devam etmeyi dene
+          if (CONTINUE_IN_PANE && videoEl && introVideoEl) {
+            try {
+              videoEl.currentTime = introVideoEl.currentTime || 0;
+              // Sessizce devam et (autoplay kısıtları)
+              const wasPaused = introVideoEl.paused;
+              if (!wasPaused) {
+                (videoEl as any).muted = true;
+                await videoEl.play().catch(() => {});
+              }
+            } catch {}
+          }
+          finishIntro();
+        };
+        return;
+      } catch {
+        // Fallback: direkt bitir
+      }
+    }
+
+    finishIntro();
+  }
+  // ===== /Intro Overlay =====
+
   // Logout function
   async function handleLogout() {
     try {
-      // Call logout API to clear server-side cookie
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include'
       });
-      
-      // Clear any local storage data
       localStorage.removeItem('user');
-      
-      // Redirect to login
       goto('/login');
     } catch (error) {
       console.error('Logout error:', error);
-      // Force redirect even if API fails
       goto('/login');
     }
   }
@@ -89,9 +176,16 @@ print("Python öğrenmeye hazır mısın?")
       clampRows();
       clampVideo();
     });
+
+    // Intro overlay'i girişte tetikle
+    await tick();
+    maybeRunIntro();
   });
 
-  onDestroy(() => {});
+  onDestroy(() => {
+    if (introStallTimer) clearTimeout(introStallTimer);
+    introVideoEl?.removeEventListener('timeupdate', armStallGuard);
+  });
 
   $: if (editorEl && monacoLib && !editor) {
     editor = monacoLib.editor.create(editorEl, {
@@ -240,137 +334,6 @@ print("Python öğrenmeye hazır mısın?")
     }
   }
 </script>
-<!--
-<style>
-  :global(html, body) {
-    height: 100%;
-    margin: 0;
-    overflow: hidden;
-  }
-  :global(body.resizing-col) {
-    cursor: col-resize;
-    user-select: none;
-  }
-  :global(body.resizing-row) {
-    cursor: row-resize;
-    user-select: none;
-  }
-
-  .shell {
-    display: grid;
-    grid-template-columns: minmax(260px, 30%) 8px 1fr; /* JS ile override */
-    gap: .75rem;
-    height: 100vh;
-    padding: .6rem;
-    box-sizing: border-box;
-  }
-
-  /* Sol iç grid: Video + Gutter + Chat */
-  .leftPane {
-    height: 100%;
-    min-height: 0;
-    display: grid;
-    grid-template-rows: 180px 8px 1fr; /* JS ile override */
-    gap: .6rem;
-  }
-
-  .chatPane {
-    height: 100%;
-    border: 1px solid #eee;
-    border-radius: .5rem;
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  .videoPane {
-    border: 1px solid #eee;
-    border-radius: .5rem;
-    overflow: hidden;
-    min-height: 0;
-    background: #000;
-  }
-
-  .gutter-v {
-    cursor: col-resize;
-    background: repeating-linear-gradient(
-      to bottom,
-      #ddd, #ddd 2px,
-      transparent 2px, transparent 6px
-    );
-    border-radius: .5rem;
-  }
-
-  .page {
-    display: grid;
-    grid-template-rows: 1fr 8px 220px; /* JS ile override */
-    height: 100%;
-    gap: .6rem;
-    min-height: 0;
-  }
-
-  .gutter-h {
-    cursor: row-resize;
-    background: repeating-linear-gradient(
-      to right,
-      #ddd, #ddd 2px,
-      transparent 2px, transparent 6px
-    );
-    border-radius: .5rem;
-  }
-
-  .editor, .out {
-    border: 1px solid #ddd;
-    border-radius: .5rem;
-    min-height: 0;
-  }
-
-  .editor {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .out {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-
-  .toolbar {
-    display: flex;
-    gap: .5rem;
-    align-items: center;
-    padding: .5rem;
-    border-bottom: 1px solid #eee;
-    flex: 0 0 auto;
-  }
-
-  .log {
-    flex: 1 1 auto;
-    padding: .75rem;
-    overflow: auto;
-    white-space: pre-wrap;
-    font-family: ui-monospace, Menlo, Consolas, monospace;
-    overflow-anchor: none;
-  }
-
-  /* Odak belirtimi — a11y */
-  .gutter-v:focus, .gutter-h:focus {
-    outline: 2px solid #6aa1ff;
-    outline-offset: 2px;
-  }
-
-  button {
-    padding: .4rem .7rem;
-    border-radius: .4rem;
-    border: 1px solid #ddd;
-    background: #f7f7f7;
-    cursor: pointer;
-  }
-  button:disabled {
-    opacity: .6;
-    cursor: not-allowed;
-  }
-</style>-->
 
 <!-- === STIL (Tokenlar + küçük global override; layout Tailwind) === -->
 <style>
@@ -413,8 +376,6 @@ print("Python öğrenmeye hazır mısın?")
   :global(.monaco-editor-background),
   :global(.monaco-scrollable-element){ background: transparent !important; }
   :global(:root){ --vscode-focusBorder: transparent; }
-  /* Monaco: focus outline'ını kökten kapat */
-  /* === Monaco: kenardaki mavi çerçeveyi her durumda kapat === */
   :global(.monaco-editor),
   :global(.monaco-editor .overflow-guard),
   :global(.monaco-editor .monaco-editor-background),
@@ -424,12 +385,55 @@ print("Python öğrenmeye hazır mısın?")
     box-shadow: none !important;
   }
 
-
+  /* Reduced motion saygısı (opsiyonel ama iyi pratik) */
+  @media (prefers-reduced-motion: reduce) {
+    :global(*) {
+      animation-duration: .01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 </style>
 
 {#await pyodideReady}
   <div>Pyodide yükleniyor…</div>
 {:then py}
+
+  <!-- ===== Intro Overlay (tam ekran) ===== -->
+  {#if introOpen}
+    <div
+      class="fixed inset-0 z-[1000] grid place-items-center bg-black/80
+             [backdrop-filter:blur(6px)] [-webkit-backdrop-filter:blur(6px)]"
+      bind:this={introBoxEl}
+    >
+      <video
+        bind:this={introVideoEl}
+        src="/videos/example.mp4"
+        class="w-[min(92vw,1200px)] h-[min(92vh,680px)] object-contain
+               rounded-[0.6rem] shadow-[0_28px_80px_rgba(0,0,0,.45)]"
+        autoplay
+        muted
+        playsinline
+        on:ended={endIntroScale}
+        on:stalled={() => armStallGuard()}
+        on:error={() => endIntroScale()}
+        on:loadedmetadata={() => introVideoEl?.play().catch(()=>{})}
+      ></video>
+
+      <button
+        class="absolute top-4 right-4 px-3 py-1.5 rounded-md border border-white/30
+               text-white/90 bg-white/10 hover:bg-white/20"
+        on:click={endIntroScale}
+        aria-label="Geç"
+        title="Geç"
+      >
+        Geç
+      </button>
+    </div>
+  {/if}
+  <!-- ===== /Intro Overlay ===== -->
+
   <!-- SHELL -->
   <div
     class="grid h-screen min-h-0 box-border gap-[0.9rem] p-[0.9rem]"
@@ -478,10 +482,9 @@ print("Python öğrenmeye hazır mısın?")
         </div>
       </div>
 
-      <!-- GUTTER (Yatay: Video ↔ Chat) bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)]-->
+      <!-- GUTTER (Yatay: Video ↔ Chat) -->
       <div
         class="h-[8px] shrink-0 z-10 rounded-full
-               
                cursor-row-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
         role="slider"
         aria-orientation="horizontal"
@@ -519,10 +522,9 @@ print("Python öğrenmeye hazır mısın?")
       </div>
     </div>
 
-    <!-- GUTTER (Dikey: Sol sütun ↔ IDE) bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)] -->
+    <!-- GUTTER (Dikey: Sol sütun ↔ IDE) -->
     <div
       class="w-[8px] shrink-0 z-10 rounded-full
-             
              cursor-col-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
       role="slider"
       aria-orientation="vertical"
@@ -561,13 +563,11 @@ print("Python öğrenmeye hazır mısın?")
             linear-gradient(180deg, rgba(255,255,255,.28), rgba(255,255,255,0) 42%) top/100% 50% no-repeat,
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
-        
       </div>
 
-      <!-- GUTTER (Yatay: Editor ↔ Konsol) deleted-> bg-[repeating-linear-gradient(to_right,#d9e1f1,#d9e1f1_2px,transparent_2px,transparent_8px)] -->
+      <!-- GUTTER (Yatay: Editor ↔ Konsol) -->
       <div
         class="h-[8px] shrink-0 z-10 rounded-full
-              
                cursor-row-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
         role="slider"
         aria-orientation="horizontal"
@@ -621,7 +621,7 @@ print("Python öğrenmeye hazır mısın?")
             >
               Temizle
             </button>
-            
+
             <!-- User info and logout -->
             <div class="ml-auto flex items-center gap-2">
               <span class="text-sm text-[var(--accent)] hidden sm:inline">
@@ -639,7 +639,6 @@ print("Python öğrenmeye hazır mısın?")
           <div class="p-4 overflow-auto font-mono text-[14px]" style="white-space: pre-line">
             {output || 'Çıktı burada görünecek.'}
           </div>
-
         </div>
       </div>
     </div>
