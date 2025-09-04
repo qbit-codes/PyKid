@@ -4,6 +4,7 @@
   // Props for getting current lesson context
   export let getCurrentEditorContent: () => string = () => '';
   export let getCurrentLessonContext: () => string = () => '';
+  export let onChatInteraction: () => void = () => {};
 
   let input = '';
   
@@ -194,6 +195,9 @@
 
   // Single submit function - routes to streaming or non-streaming based on checkbox
   function submit() {
+    // Track chat interaction
+    onChatInteraction();
+    
     return useStream ? askStream() : ask();
   }
 </script>

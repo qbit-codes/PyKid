@@ -10,6 +10,8 @@
   import { tick } from 'svelte';
   import type { Lesson, LessonStep } from '$lib/lessons';
   import { LESSONS } from '$lib/lessons';
+  import { attemptTracker } from '$lib/attempt-tracker';
+  import ProgressDashboard from '$lib/ProgressDashboard.svelte';
 
   export let data: PageData;
 
@@ -30,6 +32,9 @@
   // Lesson system state
   let currentLesson: Lesson | null = null;
   let currentStep: LessonStep | null = null;
+  
+  // Attempt tracking
+  let currentAttemptId: string | null = null;
 
   const pyodideReady = usePyodide();
 
@@ -392,26 +397,45 @@ print("Python öğrenmeye hazır mısın?")
     output = '';
     running = true;
 
+    // Start tracking attempt if we have lesson context
+    let attemptId: string | null = null;
+    if (currentLesson && currentStep) {
+      const exerciseId = currentStep.exercise?.id;
+      attemptId = attemptTracker.startAttempt(currentLesson.id, currentStep.id, exerciseId);
+      currentAttemptId = attemptId;
+      attemptTracker.updateCode(code);
+    }
+
     py.onStdout((s) => { if (s) output += s; });
     py.onStderr((s) => { if (s) output += s; });
+
+    let executionSuccess = false;
+    let executionError: string | undefined;
+    let errorType: string | undefined;
+    let validationResult: any;
 
     try {
       // Step 1: Validate code with OpenAI
       output += '🔍 Kod kontrol ediliyor...\n';
-      const validation = await validateCode(code);
+      validationResult = await validateCode(code);
+      
+      // Record validation result
+      if (attemptId) {
+        attemptTracker.recordValidation(validationResult);
+      }
       
       // Step 2: Show validation feedback
-      output += `\n📝 ${validation.feedback}\n`;
+      output += `\n📝 ${validationResult.feedback}\n`;
       
-      if (validation.suggestions && validation.suggestions.length > 0) {
+      if (validationResult.suggestions && validationResult.suggestions.length > 0) {
         output += '\n💡 Öneriler:\n';
-        validation.suggestions.forEach((suggestion: string, i: number) => {
+        validationResult.suggestions.forEach((suggestion: string, i: number) => {
           output += `   ${i + 1}. ${suggestion}\n`;
         });
       }
       
-      if (validation.educationalNotes) {
-        output += `\n🎓 ${validation.educationalNotes}\n`;
+      if (validationResult.educationalNotes) {
+        output += `\n🎓 ${validationResult.educationalNotes}\n`;
       }
       
       output += '\n' + '='.repeat(40) + '\n';
@@ -419,11 +443,38 @@ print("Python öğrenmeye hazır mısın?")
       // Step 3: Run code in Pyodide (always run, validation is for feedback only)
       output += '🚀 Kod çalıştırılıyor...\n\n';
       await py.run(code);
+      executionSuccess = true;
       
     } catch (e: any) {
-      output += `\n[Hata] ${e?.message || e}`;
+      executionSuccess = false;
+      executionError = e?.message || String(e);
+      
+      // Categorize error type
+      if (executionError && executionError.includes('SyntaxError')) {
+        errorType = 'syntax';
+      } else if (executionError && (executionError.includes('NameError') || executionError.includes('AttributeError'))) {
+        errorType = 'logic';
+      } else if (executionError && executionError.includes('TimeoutError')) {
+        errorType = 'timeout';
+      } else {
+        errorType = 'runtime';
+      }
+      
+      output += `\n[Hata] ${executionError}`;
     } finally {
       running = false;
+      
+      // Record execution results and finish attempt
+      if (attemptId) {
+        attemptTracker.recordExecution(executionSuccess, output, executionError, errorType);
+        
+        // Determine if attempt was successful based on validation and execution
+        const isSuccessful = executionSuccess && 
+          (validationResult?.isValid || validationResult?.confidence > 0.7);
+        
+        attemptTracker.finishAttempt(isSuccessful);
+        currentAttemptId = null;
+      }
     }
   }
 
@@ -444,6 +495,20 @@ print("Python öğrenmeye hazır mısın?")
       `Bu adımda teori öğreniyor: ${currentStep.content.substring(0, 200)}...`;
     
     return lessonInfo + objective + stepContent;
+  }
+
+  // Track chat interaction
+  function handleChatInteraction() {
+    if (currentAttemptId) {
+      attemptTracker.recordHelpRequest('chat');
+    }
+  }
+
+  // Track video watching
+  function handleVideoPlay() {
+    if (currentAttemptId) {
+      attemptTracker.recordHelpRequest('video');
+    }
   }
 
   // Lesson system event handlers
@@ -575,6 +640,9 @@ print("Python öğrenmeye hazır mısın?")
 
   // Lesson selector state
   let showLessonSelector = false;
+  
+  // Progress dashboard state
+  let showProgressDashboard = false;
 
   // Start with lesson navigation (no lesson pre-selected)
   onMount(() => {
@@ -737,6 +805,7 @@ print("Python öğrenmeye hazır mısın?")
             playsinline
             class="w-full h-full object-contain bg-black rounded-[0.5rem]"
             aria-label="PyKid tanıtım videosu"
+            on:play={handleVideoPlay}
           >
             <source src="/videos/example.mp4" type="video/mp4" />
             <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
@@ -780,7 +849,7 @@ print("Python öğrenmeye hazır mısın?")
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
         <div class="relative z-[1] h-full">
-          <ChatPanel {getCurrentEditorContent} {getCurrentLessonContext} />
+          <ChatPanel {getCurrentEditorContent} {getCurrentLessonContext} onChatInteraction={handleChatInteraction} />
         </div>
       </div>
     </div>
@@ -891,6 +960,13 @@ print("Python öğrenmeye hazır mısın?")
             >
               📚 Dersler
             </button>
+            <button
+              class="px-3 py-1.5 rounded-md border border-[var(--line)] bg-white/70 hover:bg-white"
+              on:click={() => showProgressDashboard = !showProgressDashboard}
+              title="İlerleme paneli"
+            >
+              📊 İlerleme
+            </button>
             <!-- User info and logout -->
             <div class="ml-auto flex items-center gap-2">
               <span class="text-sm text-[var(--accent)] hidden sm:inline">
@@ -912,6 +988,27 @@ print("Python öğrenmeye hazır mısın?")
       </div>
     </div>
   </div>
+
+  <!-- Progress Dashboard Modal -->
+  {#if showProgressDashboard}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={() => showProgressDashboard = false}>
+      <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] m-4" on:click|stopPropagation>
+        <div class="flex items-center justify-between p-4 border-b border-gray-200">
+          <h2 class="text-xl font-bold text-gray-800">📊 İlerleme Panosu</h2>
+          <button 
+            class="text-gray-500 hover:text-gray-700 text-xl"
+            on:click={() => showProgressDashboard = false}
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div class="overflow-auto max-h-[80vh]">
+          <ProgressDashboard />
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Lesson Selector Modal -->
   {#if showLessonSelector}
@@ -938,7 +1035,7 @@ print("Python öğrenmeye hazır mısın?")
                   <button
                     class="text-left p-2 rounded border border-gray-200 hover:bg-gray-50 transition-colors text-sm"
                     on:click={() => {
-                      handleStepSelect({ detail: { lesson, step } });
+                      handleStepSelect(new CustomEvent('stepselect', { detail: { lesson, step } }));
                       showLessonSelector = false;
                     }}
                   >
@@ -952,7 +1049,7 @@ print("Python öğrenmeye hazır mısın?")
                   <button
                     class="text-left p-2 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors text-sm"
                     on:click={() => {
-                      handleStepSelect({ detail: { 
+                      handleStepSelect(new CustomEvent('stepselect', { detail: { 
                         lesson, 
                         step: { 
                           id: 'final-project', 
@@ -960,7 +1057,7 @@ print("Python öğrenmeye hazır mısın?")
                           content: lesson.finalProject?.description || '',
                           exercise: lesson.finalProject 
                         } 
-                      } });
+                      } }));
                       showLessonSelector = false;
                     }}
                   >
