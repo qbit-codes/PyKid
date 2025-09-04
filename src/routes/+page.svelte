@@ -33,6 +33,30 @@
   // Sol iç grid: Video + Chat
   let leftPaneEl: HTMLDivElement;
   let videoEl: HTMLVideoElement;
+  let isMuted = false;    // gerçek ses durumunu yansıt
+
+
+async function tryAutoplayWithAudio() {
+  if (!videoEl) return;
+  try {
+    videoEl.muted = false;    // önce sesli dene
+    isMuted = false;
+    await videoEl.play();     // bazı tarayıcılarda burada NotAllowedError düşer
+  } catch {
+    // Fallback: sessiz autoplay
+    videoEl.muted = true;
+    isMuted = true;
+    await videoEl.play().catch(() => {});
+
+    // İsteğe bağlı: ilk kullanıcı jestinde otomatik sesi aç
+    window.addEventListener('pointerdown', () => {
+      if (!videoEl) return;
+      videoEl.muted = false;
+      isMuted = false;
+      videoEl.play().catch(() => {});
+    }, { once: true, passive: true });
+  }
+}
 
   let editor: any = null;
   let monacoLib: any = null;
@@ -287,6 +311,8 @@ function onReplay(ev: Event) {
 
     window.addEventListener('pysk:intro:replay', onReplay);// intro replay event ekleme tarihi 19:28
 
+    autoSelectLessonAndStep();
+
     const l = Number(localStorage.getItem(LS_LEFT));
     if (!Number.isNaN(l) && l > 0) leftPx = l;
 
@@ -304,6 +330,8 @@ function onReplay(ev: Event) {
 
     // Intro overlay'i girişte tetikle
     await tick();
+
+    ensureAutoplay();
     maybeRunIntro();
   });
 
@@ -817,9 +845,10 @@ function onReplay(ev: Event) {
   let showProgressDashboard = false;
 
   // Auto-select lesson and step on app start
+  /*
   onMount(() => {
     autoSelectLessonAndStep();
-  });
+  });*/
 
   // Function to automatically select appropriate lesson and step
   function autoSelectLessonAndStep() {
@@ -884,6 +913,73 @@ function onReplay(ev: Event) {
       showLessonSelector = false;
     }
   }
+
+
+    // ---- Video kontrol durumu ---- 19:47
+  let showVideoControls = false;   // <-- bool: true iken custom kontroller görünsün
+  let isPlaying = false;
+  let showNativeControls = false;
+
+  function playVideo() {
+    if (!videoEl) return;
+    // Autoplay kısıtlarına takılmamak için muted başlat, sonra aç istersen
+    (videoEl as HTMLVideoElement).play().catch(() => {});
+  }
+  function pauseVideo() {
+    videoEl?.pause();
+  }
+  function togglePlay() {
+    if (!videoEl) return;
+    videoEl.paused ? playVideo() : pauseVideo();
+  }
+
+
+ 
+
+let triedAutoOnce = false;
+let autoplayMutedFallback = false;
+let unmutedOnce = false;
+
+async function ensureAutoplay() {
+  if (!videoEl || triedAutoOnce) return;
+  triedAutoOnce = true;
+  autoplayMutedFallback = false;
+
+  try {
+    // 1) SESLİ dene
+    videoEl.muted = false;
+    videoEl.removeAttribute('muted');   // iOS için önemli
+    await videoEl.play();
+  } catch {
+    // 2) Sessiz autoplay’e düş
+    autoplayMutedFallback = true;
+    videoEl.muted = true;
+    videoEl.setAttribute('muted', '');  // iOS Safari'de şart
+    await videoEl.play().catch(() => {});
+    armUnmuteOnce();                    // ilk jestte sadece unmute et
+  }
+}
+
+// Kullanıcı ilk jestinde sadece sesi aç (play() çağırma!)
+function armUnmuteOnce() {
+  if (unmutedOnce) return;
+  const handler = () => {
+    if (!videoEl) return;
+    if (autoplayMutedFallback) {
+      videoEl.muted = false;
+      videoEl.removeAttribute('muted'); // yoksa iOS yine sessiz kalabilir
+      unmutedOnce = true;
+    }
+    window.removeEventListener('pointerdown', handler);
+    window.removeEventListener('keydown', handler);
+    videoEl?.removeEventListener('click', handler);
+  };
+  window.addEventListener('pointerdown', handler, { once: true, passive: true });
+  window.addEventListener('keydown', handler, { once: true, passive: true });
+  // iOS’ta native UI window event’i tüketirse garanti olsun diye:
+  videoEl?.addEventListener('click', handler, { once: true, passive: true });
+}
+
 </script>
 
 <!-- === STIL (Tokenlar + küçük global override; layout Tailwind) === -->
@@ -961,13 +1057,14 @@ function onReplay(ev: Event) {
              [backdrop-filter:blur(6px)] [-webkit-backdrop-filter:blur(6px)]"
       bind:this={introBoxEl}
     >
+      
       <video
         bind:this={introVideoEl}
         src="/videos/example.mp4"
         class="w-[min(92vw,1200px)] h-[min(92vh,680px)] object-contain
                rounded-[0.6rem] shadow-[0_28px_80px_rgba(0,0,0,.45)]"
         autoplay
-        muted
+        
         playsinline
         on:ended={endIntroScale}
         on:stalled={() => armStallGuard()}
@@ -1022,6 +1119,7 @@ function onReplay(ev: Event) {
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
         <div class="relative z-[1] p-2 h-full">
+          <!-- Video başlık ve custom kontroller 
           <video
             bind:this={videoEl}
             controls
@@ -1033,7 +1131,51 @@ function onReplay(ev: Event) {
             <source src="/videos/example.mp4" type="video/mp4" />
             <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
             Tarayıcınız video etiketini desteklemiyor.
+          </video>-->
+          <video
+            bind:this={videoEl}
+            controls={showNativeControls}  
+            playsinline
+            autoplay
+            preload="auto"
+            class="w-full h-full object-contain bg-black rounded-[0.5rem]"
+            aria-label="PyKid tanıtım videosu"
+            on:loadedmetadata={ensureAutoplay}
+            on:play={() => { handleVideoPlay(); isPlaying = true; }}
+            on:pause={() => { isPlaying = false; }}
+            on:ended={() => { isPlaying = false; }}
+            on:click={() => { if (!showNativeControls) togglePlay(); }}  
+          >
+            <source src="/videos/example.mp4" type="video/mp4" />
+            <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
+            Tarayıcınız video etiketini desteklemiyor.
           </video>
+
+          {#if showVideoControls}
+            <div
+              class="absolute bottom-3 left-3 z-[2] flex items-center gap-2 pointer-events-auto"
+            >
+              <button
+                class="px-3 py-1.5 rounded-md bg-[var(--accent)] text-white border-0 shadow
+                       hover:brightness-110 active:scale-[.98]"
+                on:click={togglePlay}
+                aria-label={isPlaying ? 'Durdur' : 'Oynat'}
+                title={isPlaying ? 'Durdur' : 'Oynat'}
+              >
+                {isPlaying ? '⏸ Durdur' : '▶ Oynat'}
+              </button>
+
+              <button
+                class="px-3 py-1.5 rounded-md border border-[var(--line)] bg-white/70 hover:bg-white"
+                on:click={() => { if (videoEl) { videoEl.currentTime = 0; playVideo(); } }}
+                title="Baştan Oynat"
+              >
+                ⟲ Baştan
+              </button>
+            </div>
+          {/if}
+
+
         </div>
       </div>
 
