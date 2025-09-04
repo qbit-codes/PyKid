@@ -131,7 +131,7 @@ finally:
 
 
 
-
+// Referans amaçlı eski kod
 /*
 let boot: Promise<{
   pyodide: any;
