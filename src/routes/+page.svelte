@@ -3,9 +3,13 @@
   import { onMount, onDestroy } from 'svelte';
   import { usePyodide } from '$lib/pyodide';
   import ChatPanel from '$lib/ChatPanel.svelte';
+  import LessonNav from '$lib/LessonNav.svelte';
+  import LessonContent from '$lib/LessonContent.svelte';
   import { goto } from '$app/navigation';
   import type { PageData } from './$types';
   import { tick } from 'svelte';
+  import type { Lesson, LessonStep } from '$lib/lessons';
+  import { LESSONS } from '$lib/lessons';
 
   export let data: PageData;
 
@@ -22,6 +26,10 @@
   let monacoLib: any = null;
   let output = '';
   let running = false;
+
+  // Lesson system state
+  let currentLesson: Lesson | null = null;
+  let currentStep: LessonStep | null = null;
 
   const pyodideReady = usePyodide();
 
@@ -369,6 +377,167 @@ print("Python öğrenmeye hazır mısın?")
     if (!editor) return '';
     return editor.getValue() || '';
   }
+
+  // Function to get current lesson context for Ada Teacher
+  function getCurrentLessonContext(): string {
+    if (!currentLesson || !currentStep) return '';
+    
+    const lessonInfo = `Öğrenci şu anda "${currentLesson.title}" dersinde "${currentStep.title}" adımında. `;
+    const objective = currentLesson.objectives.length > 0 ? `Dersin hedefleri: ${currentLesson.objectives.join(', ')}. ` : '';
+    const stepContent = currentStep.exercise ? 
+      `Bu adımda "${currentStep.exercise.title}" alıştırmasını yapıyor. Alıştırma: ${currentStep.exercise.description}` :
+      `Bu adımda teori öğreniyor: ${currentStep.content.substring(0, 200)}...`;
+    
+    return lessonInfo + objective + stepContent;
+  }
+
+  // Lesson system event handlers
+  function handleLessonSelect(event: CustomEvent<{ lesson: Lesson }>) {
+    const { lesson } = event.detail;
+    currentLesson = lesson;
+    const firstStep = lesson.steps[0] || null;
+    currentStep = firstStep;
+    
+    // Load lesson content as comments in editor
+    if (firstStep && editor) {
+      const lessonComments = generateLessonComments(lesson, firstStep);
+      editor.setValue(lessonComments);
+    }
+  }
+
+  function handleStepSelect(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
+    const { lesson, step } = event.detail;
+    currentLesson = lesson;
+    currentStep = step;
+    
+    // Load step content as comments in editor
+    if (editor) {
+      const lessonComments = generateLessonComments(lesson, step);
+      editor.setValue(lessonComments);
+    }
+  }
+
+  function handleCodeUpdate(event: CustomEvent<{ code: string }>) {
+    const { code } = event.detail;
+    if (editor) {
+      editor.setValue(code);
+    }
+  }
+
+  function handleExerciseComplete(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
+    // Could show success message or confetti here
+    console.log('Exercise completed!', event.detail);
+  }
+
+  function handleNextStep(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
+    const { lesson, step } = event.detail;
+    currentLesson = lesson;
+    currentStep = step;
+  }
+
+  function handleNextLesson(event: CustomEvent<{ lesson: Lesson }>) {
+    const { lesson } = event.detail;
+    currentLesson = lesson;
+    currentStep = lesson.steps[0] || null;
+  }
+
+  function handleGetEditorCode(event: CustomEvent<void>) {
+    // Return current editor code to lesson component
+    return getCurrentEditorContent();
+  }
+
+  function handleBackToLessons() {
+    // Clear current lesson/step to show lesson navigation
+    currentLesson = null;
+    currentStep = null;
+  }
+
+  // Generate lesson instructions as Python comments
+  function generateLessonComments(lesson: Lesson, step: LessonStep): string {
+    const comments = [];
+    
+    // Lesson and step title
+    comments.push(`# ========================================`);
+    comments.push(`# ${lesson.title} - ${step.title}`);
+    comments.push(`# ========================================`);
+    comments.push(``);
+    
+    // Step description (clean markdown)
+    const cleanContent = step.content
+      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
+      .replace(/\*(.*?)\*/g, '$1') // Remove italic
+      .replace(/`(.*?)`/g, '$1') // Remove code backticks
+      .replace(/^#+\s*/gm, '') // Remove markdown headers
+      .replace(/^-\s*/gm, '• ') // Convert list items
+      .split('\n')
+      .filter(line => line.trim())
+      .slice(0, 5); // Limit to first 5 lines
+    
+    comments.push(`# Konu:`);
+    cleanContent.forEach(line => {
+      if (line.trim()) {
+        comments.push(`# ${line.trim()}`);
+      }
+    });
+    comments.push(``);
+    
+    // Exercise instructions
+    if (step.exercise) {
+      comments.push(`# 🏋️ Alıştırma: ${step.exercise.title}`);
+      comments.push(`# ${step.exercise.description}`);
+      comments.push(``);
+      
+      // Add hints as comments
+      if (step.exercise.hints && step.exercise.hints.length > 0) {
+        comments.push(`# 💡 İpuçları:`);
+        step.exercise.hints.slice(0, 3).forEach((hint, index) => {
+          comments.push(`# ${index + 1}. ${hint}`);
+        });
+        comments.push(``);
+      }
+    }
+    
+    comments.push(`# Buraya kodunu yaz:`);
+    comments.push(``);
+    
+    // Add starter code if available
+    if (step.exercise?.starterCode && step.exercise.starterCode.trim()) {
+      const starterLines = step.exercise.starterCode.split('\n');
+      starterLines.forEach(line => {
+        comments.push(line);
+      });
+    } else if (step.codeExample) {
+      comments.push(`# Örnek:`);
+      const exampleLines = step.codeExample.split('\n');
+      exampleLines.forEach(line => {
+        comments.push(`# ${line}`);
+      });
+      comments.push(``);
+    }
+    
+    return comments.join('\n');
+  }
+
+  // Lesson selector state
+  let showLessonSelector = false;
+
+  // Start with lesson navigation (no lesson pre-selected)
+  onMount(() => {
+    // Don't auto-select a lesson, let user choose
+    currentLesson = null;
+    currentStep = null;
+  });
+
+  // Keyboard shortcut to open lesson selector
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.ctrlKey && event.key === 'l') {
+      event.preventDefault();
+      showLessonSelector = !showLessonSelector;
+    }
+    if (event.key === 'Escape') {
+      showLessonSelector = false;
+    }
+  }
 </script>
 
 <!-- === STIL (Tokenlar + küçük global override; layout Tailwind) === -->
@@ -431,6 +600,9 @@ print("Python öğrenmeye hazır mısın?")
     }
   }
 </style>
+
+<!-- Keyboard event handler -->
+<svelte:window on:keydown={handleKeydown} />
 
 {#await pyodideReady}
   <div>Pyodide yükleniyor…</div>
@@ -538,7 +710,7 @@ print("Python öğrenmeye hazır mısın?")
         }}
       ></div>
 
-      <!-- CHAT KART (GLASS) -->
+      <!-- CHAT PANEL (ADA TEACHER) -->
       <div
         class="relative h-full rounded-[var(--radius)] border border-[var(--glass-border)]
                bg-[var(--glass-bg)] shadow-[0_12px_32px_rgba(130,135,146,.10)]
@@ -553,7 +725,7 @@ print("Python öğrenmeye hazır mısın?")
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
         <div class="relative z-[1] h-full">
-          <ChatPanel {getCurrentEditorContent} />
+          <ChatPanel {getCurrentEditorContent} {getCurrentLessonContext} />
         </div>
       </div>
     </div>
@@ -657,7 +829,13 @@ print("Python öğrenmeye hazır mısın?")
             >
               Temizle
             </button>
-
+            <button
+              class="px-3 py-1.5 rounded-md border border-[var(--line)] bg-white/70 hover:bg-white"
+              on:click={() => showLessonSelector = !showLessonSelector}
+              title="Ders seç (Ctrl+L)"
+            >
+              📚 Dersler
+            </button>
             <!-- User info and logout -->
             <div class="ml-auto flex items-center gap-2">
               <span class="text-sm text-[var(--accent)] hidden sm:inline">
@@ -679,6 +857,75 @@ print("Python öğrenmeye hazır mısın?")
       </div>
     </div>
   </div>
+
+  <!-- Lesson Selector Modal -->
+  {#if showLessonSelector}
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" on:click={() => showLessonSelector = false}>
+      <div class="bg-white rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-auto" on:click|stopPropagation>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-gray-800">📚 Ders Seçin</h2>
+          <button 
+            class="text-gray-500 hover:text-gray-700 text-xl"
+            on:click={() => showLessonSelector = false}
+          >
+            ✕
+          </button>
+        </div>
+        
+        <div class="space-y-4">
+          {#each LESSONS as lesson}
+            <div class="border border-gray-200 rounded-lg p-4">
+              <h3 class="font-semibold text-gray-800 mb-2">{lesson.title}</h3>
+              <p class="text-sm text-gray-600 mb-3">{lesson.description}</p>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {#each lesson.steps as step, index}
+                  <button
+                    class="text-left p-2 rounded border border-gray-200 hover:bg-gray-50 transition-colors text-sm"
+                    on:click={() => {
+                      handleStepSelect({ detail: { lesson, step } });
+                      showLessonSelector = false;
+                    }}
+                  >
+                    <span class="text-xs text-gray-500">Adım {index + 1}:</span>
+                    <br>
+                    {step.title}
+                  </button>
+                {/each}
+                
+                {#if lesson.finalProject}
+                  <button
+                    class="text-left p-2 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors text-sm"
+                    on:click={() => {
+                      handleStepSelect({ detail: { 
+                        lesson, 
+                        step: { 
+                          id: 'final-project', 
+                          title: lesson.finalProject?.title || 'Final Project', 
+                          content: lesson.finalProject?.description || '',
+                          exercise: lesson.finalProject 
+                        } 
+                      } });
+                      showLessonSelector = false;
+                    }}
+                  >
+                    <span class="text-xs text-purple-600">Final Proje:</span>
+                    <br>
+                    🎯 {lesson.finalProject.title}
+                  </button>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+        
+        <div class="mt-4 text-sm text-gray-500 text-center">
+          <kbd class="px-2 py-1 bg-gray-100 rounded">Ctrl+L</kbd> ile açabilirsin
+        </div>
+      </div>
+    </div>
+  {/if}
+
 {:catch err}
   <div class="text-[#b00]">Pyodide başlatılamadı: {String(err)}</div>
 {/await}

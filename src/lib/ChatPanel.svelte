@@ -3,6 +3,7 @@
   
   // Props for getting current lesson context
   export let getCurrentEditorContent: () => string = () => '';
+  export let getCurrentLessonContext: () => string = () => '';
 
   let input = '';
   
@@ -22,8 +23,9 @@
     sending = true;
 
     try {
-      // Get current editor content to understand lesson context
+      // Get current editor content and lesson context
       const editorContent = getCurrentEditorContent();
+      const lessonContext = getCurrentLessonContext();
       
       const resp = await fetch('/api/chat', {
         method: 'POST',
@@ -33,11 +35,12 @@
             { role: 'system', content: systemPrompt },
             { role: 'system', content: `The student conversation is starting now. They haven't asked any questions yet. You should start the conversation! 
             
-            IMPORTANT: First, detect what lesson topic the student is working on by looking at their code editor content. Then introduce yourself warmly and reference their current lesson topic. Be encouraging and let them know you're here to help with their specific lesson.
+            IMPORTANT: The student is currently working on a structured lesson. Use the lesson context provided to give personalized, relevant guidance.
             
+            Current lesson context: "${lessonContext || 'No specific lesson selected'}"
             Current editor content: "${editorContent || 'Empty - student just started'}"
             
-            Use your detect_current_lesson_topic function to understand what they're working on, then greet them with context about their lesson.` },
+            Introduce yourself warmly and reference their current lesson. Be encouraging and let them know you're here to help with their specific lesson step.` },
             { role: 'user', content: 'Hello Ada' }
           ]
         })
@@ -79,13 +82,19 @@
     input = '';
 
     const userMsg = { role: 'user' as const, content: q };
+    
+    // Include current lesson context in system message
+    const lessonContext = getCurrentLessonContext();
+    const editorContent = getCurrentEditorContent();
+    const contextMessage = lessonContext ? 
+      `\n\nCurrent lesson context: ${lessonContext}\nCurrent editor content: ${editorContent}` : '';
 
     const r = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: systemPrompt + contextMessage },
           ...history,
           userMsg
         ]
@@ -121,13 +130,19 @@
     history = [...history, userMsg, { role: 'assistant', content: '' }];
     const aiIndex = history.length - 1;
 
+    // Include current lesson context in system message
+    const lessonContext = getCurrentLessonContext();
+    const editorContent = getCurrentEditorContent();
+    const contextMessage = lessonContext ? 
+      `\n\nCurrent lesson context: ${lessonContext}\nCurrent editor content: ${editorContent}` : '';
+
     try {
       const resp = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           messages: [
-            { role: 'system', content: systemPrompt },
+            { role: 'system', content: systemPrompt + contextMessage },
             ...history.slice(0, -1) // Don't send the empty assistant message
           ]
         })
