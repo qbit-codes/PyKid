@@ -12,6 +12,16 @@
   import { LESSONS } from '$lib/lessons';
   import { attemptTracker } from '$lib/attempt-tracker';
   import ProgressDashboard from '$lib/ProgressDashboard.svelte';
+  import { 
+    getLessonById, 
+    getStepById, 
+    getNextStep, 
+    getNextLesson, 
+    isStepCompleted, 
+    isLessonCompleted,
+    markStepCompleted, 
+    markLessonCompleted 
+  } from '$lib/lessons';
 
   export let data: PageData;
 
@@ -238,6 +248,12 @@ print("Python öğrenmeye hazır mısın?")
       fontSize: 14,
       minimap: { enabled: false }
     });
+    
+    // Auto-select lesson after editor is ready
+    if (currentLesson && currentStep) {
+      const lessonComments = generateLessonComments(currentLesson, currentStep);
+      editor.setValue(lessonComments);
+    }
   }
 
   // --- Dış sütun: sol genişlik drag ---
@@ -474,7 +490,84 @@ print("Python öğrenmeye hazır mısın?")
         
         attemptTracker.finishAttempt(isSuccessful);
         currentAttemptId = null;
+        
+        // Auto-progress to next step/lesson if successful
+        if (isSuccessful) {
+          await handleAutoProgression();
+        }
       }
+    }
+  }
+  
+  // Handle automatic progression after successful completion
+  async function handleAutoProgression() {
+    if (!currentLesson || !currentStep) return;
+    
+    // Mark current step as completed
+    markStepCompleted(currentLesson.id, currentStep.id);
+    
+    // Check if it's an exercise step and was successful
+    if (currentStep.exercise) {
+      // Wait a bit for user to see success message
+      setTimeout(() => {
+        // Capture current values to avoid null checks
+        const lesson = currentLesson;
+        const step = currentStep;
+        if (!lesson || !step) return;
+        
+        // Try to progress to next step
+        const nextStep = getNextStep(lesson.id, step.id);
+        
+        if (nextStep) {
+          // Move to next step in same lesson
+          currentStep = nextStep;
+          
+          if (editor) {
+            const lessonComments = generateLessonComments(lesson, nextStep);
+            editor.setValue(lessonComments);
+          }
+          
+          // Show progression message
+          output += `\n\n🎉 Harika! Bir sonraki adıma geçiyoruz: "${nextStep.title}"\n`;
+        } else {
+          // No more steps, check for final project
+          if (lesson.finalProject && !isStepCompleted(lesson.id, 'final-project')) {
+            // Move to final project
+            currentStep = {
+              id: 'final-project',
+              title: lesson.finalProject.title,
+              content: lesson.finalProject.description,
+              exercise: lesson.finalProject
+            };
+            
+            if (editor) {
+              const lessonComments = generateLessonComments(lesson, currentStep);
+              editor.setValue(lessonComments);
+            }
+            
+            output += `\n\n🎯 Tüm adımları tamamladın! Final projesine geçiyoruz: "${lesson.finalProject.title}"\n`;
+          } else {
+            // Mark lesson as completed and move to next lesson
+            markLessonCompleted(lesson.id);
+            
+            const nextLesson = getNextLesson(lesson.id);
+            if (nextLesson) {
+              currentLesson = nextLesson;
+              currentStep = nextLesson.steps[0];
+              
+              if (editor) {
+                const lessonComments = generateLessonComments(nextLesson, nextLesson.steps[0]);
+                editor.setValue(lessonComments);
+              }
+              
+              output += `\n\n🌟 Dersi tamamladın! Bir sonraki derse geçiyoruz: "${nextLesson.title}"\n`;
+            } else {
+              // All lessons completed!
+              output += `\n\n🎉🎉🎉 TEBRİKLER! Tüm dersleri tamamladın! Python öğrenme serüvenin harika geçti! 🎉🎉🎉\n`;
+            }
+          }
+        }
+      }, 2000); // 2 second delay to let user read success message
     }
   }
 
@@ -515,12 +608,18 @@ print("Python öğrenmeye hazır mısın?")
   function handleLessonSelect(event: CustomEvent<{ lesson: Lesson }>) {
     const { lesson } = event.detail;
     currentLesson = lesson;
-    const firstStep = lesson.steps[0] || null;
-    currentStep = firstStep;
+    
+    // Find first uncompleted step in selected lesson
+    const firstUncompletedStep = lesson.steps.find(step => 
+      !isStepCompleted(lesson.id, step.id)
+    );
+    
+    // Use first uncompleted step or first step if all completed
+    currentStep = firstUncompletedStep || lesson.steps[0] || null;
     
     // Load lesson content as comments in editor
-    if (firstStep && editor) {
-      const lessonComments = generateLessonComments(lesson, firstStep);
+    if (currentStep && editor) {
+      const lessonComments = generateLessonComments(lesson, currentStep);
       editor.setValue(lessonComments);
     }
   }
@@ -567,9 +666,8 @@ print("Python öğrenmeye hazır mısın?")
   }
 
   function handleBackToLessons() {
-    // Clear current lesson/step to show lesson navigation
-    currentLesson = null;
-    currentStep = null;
+    // Auto-select appropriate lesson instead of clearing
+    autoSelectLessonAndStep();
   }
 
   // Generate lesson instructions as Python comments
@@ -644,12 +742,63 @@ print("Python öğrenmeye hazır mısın?")
   // Progress dashboard state
   let showProgressDashboard = false;
 
-  // Start with lesson navigation (no lesson pre-selected)
+  // Auto-select lesson and step on app start
   onMount(() => {
-    // Don't auto-select a lesson, let user choose
-    currentLesson = null;
-    currentStep = null;
+    autoSelectLessonAndStep();
   });
+
+  // Function to automatically select appropriate lesson and step
+  function autoSelectLessonAndStep() {
+    // Find first uncompleted lesson
+    const firstUncompletedLesson = LESSONS.find(lesson => !isLessonCompleted(lesson.id));
+    
+    if (firstUncompletedLesson) {
+      // Find first uncompleted step in the lesson
+      const firstUncompletedStep = firstUncompletedLesson.steps.find(step => 
+        !isStepCompleted(firstUncompletedLesson.id, step.id)
+      );
+      
+      if (firstUncompletedStep) {
+        // Set current lesson and step
+        currentLesson = firstUncompletedLesson;
+        currentStep = firstUncompletedStep;
+        
+        // Load lesson content in editor
+        if (editor) {
+          const lessonComments = generateLessonComments(firstUncompletedLesson, firstUncompletedStep);
+          editor.setValue(lessonComments);
+        }
+      } else {
+        // All steps completed, show final project if exists
+        if (firstUncompletedLesson.finalProject) {
+          currentLesson = firstUncompletedLesson;
+          currentStep = {
+            id: 'final-project',
+            title: firstUncompletedLesson.finalProject.title,
+            content: firstUncompletedLesson.finalProject.description,
+            exercise: firstUncompletedLesson.finalProject
+          };
+          
+          if (editor) {
+            const lessonComments = generateLessonComments(firstUncompletedLesson, currentStep);
+            editor.setValue(lessonComments);
+          }
+        }
+      }
+    } else {
+      // All lessons completed - start from first lesson for review
+      const firstLesson = LESSONS[0];
+      if (firstLesson) {
+        currentLesson = firstLesson;
+        currentStep = firstLesson.steps[0];
+        
+        if (editor) {
+          const lessonComments = generateLessonComments(firstLesson, firstLesson.steps[0]);
+          editor.setValue(lessonComments);
+        }
+      }
+    }
+  }
 
   // Keyboard shortcut to open lesson selector
   function handleKeydown(event: KeyboardEvent) {
@@ -1032,22 +1181,35 @@ print("Python öğrenmeye hazır mısın?")
               
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {#each lesson.steps as step, index}
+                  {@const isCompleted = isStepCompleted(lesson.id, step.id)}
                   <button
-                    class="text-left p-2 rounded border border-gray-200 hover:bg-gray-50 transition-colors text-sm"
+                    class="text-left p-2 rounded border transition-colors text-sm {
+                      isCompleted 
+                        ? 'border-green-200 bg-green-50 hover:bg-green-100' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }"
                     on:click={() => {
                       handleStepSelect(new CustomEvent('stepselect', { detail: { lesson, step } }));
                       showLessonSelector = false;
                     }}
                   >
                     <span class="text-xs text-gray-500">Adım {index + 1}:</span>
+                    {#if isCompleted}
+                      <span class="text-green-600 text-xs ml-1">✓</span>
+                    {/if}
                     <br>
                     {step.title}
                   </button>
                 {/each}
                 
                 {#if lesson.finalProject}
+                  {@const isFinalProjectCompleted = isStepCompleted(lesson.id, 'final-project')}
                   <button
-                    class="text-left p-2 rounded border border-purple-200 bg-purple-50 hover:bg-purple-100 transition-colors text-sm"
+                    class="text-left p-2 rounded border transition-colors text-sm {
+                      isFinalProjectCompleted
+                        ? 'border-green-200 bg-green-50 hover:bg-green-100'
+                        : 'border-purple-200 bg-purple-50 hover:bg-purple-100'
+                    }"
                     on:click={() => {
                       handleStepSelect(new CustomEvent('stepselect', { detail: { 
                         lesson, 
@@ -1061,7 +1223,10 @@ print("Python öğrenmeye hazır mısın?")
                       showLessonSelector = false;
                     }}
                   >
-                    <span class="text-xs text-purple-600">Final Proje:</span>
+                    <span class="text-xs {isFinalProjectCompleted ? 'text-green-600' : 'text-purple-600'}">Final Proje:</span>
+                    {#if isFinalProjectCompleted}
+                      <span class="text-green-600 text-xs ml-1">✓</span>
+                    {/if}
                     <br>
                     🎯 {lesson.finalProject.title}
                   </button>
