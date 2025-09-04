@@ -636,9 +636,10 @@ print("Python öğrenmeye hazır mısın?")
               </button>
             </div>
           </div>
-          <div class="p-4 overflow-auto whitespace-pre-wrap font-mono text-[14px] bg-transparent">
-            {output || 'Çıktı burada görünecek.'}
-          </div>
+          <pre class="m-0 font-mono text-[14px]" style="white-space: break-spaces">
+          {output || 'Çıktı burada görünecek.'}
+        </pre>
+
         </div>
       </div>
     </div>
