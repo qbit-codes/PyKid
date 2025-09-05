@@ -311,50 +311,11 @@
     loadVideo();
   }
   
-  // Keyboard shortcuts
-  function handleKeydown(event: KeyboardEvent) {
-    if (!showControls) return;
-    
-    switch (event.key) {
-      case ' ':
-      case 'k':
-        event.preventDefault();
-        togglePlay();
-        break;
-      case 'ArrowLeft':
-        event.preventDefault();
-        seekTo(currentTime - 10);
-        break;
-      case 'ArrowRight':
-        event.preventDefault();
-        seekTo(currentTime + 10);
-        break;
-      case 'm':
-        event.preventDefault();
-        toggleMute();
-        break;
-      case 'ArrowUp':
-        event.preventDefault();
-        setVolume(volume + 0.1);
-        break;
-      case 'ArrowDown':
-        event.preventDefault();
-        setVolume(volume - 0.1);
-        break;
-    }
-  }
-  
   onMount(() => {
-    if (typeof window !== 'undefined') {
-      window.addEventListener('keydown', handleKeydown);
-    }
+    // No keyboard shortcuts to avoid interfering with IDE typing
   });
   
   onDestroy(() => {
-    if (typeof window !== 'undefined') {
-      window.removeEventListener('keydown', handleKeydown);
-    }
-    
     // Track final watch time on component destroy
     if (watchStartTime > 0 && videoMetadata) {
       totalWatchTime += Date.now() - watchStartTime;
