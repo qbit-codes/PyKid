@@ -61,7 +61,9 @@ print("Python öğrenmeye hazır mısın?")
     videoManager.updateVideoForLesson(
       $currentLessonState.currentLesson, 
       $currentLessonState.currentStep
-    );
+    ).catch(error => {
+      console.error('Error updating video for lesson:', error);
+    });
   }
 
   // Auto-generate lesson comments when lesson/step changes
@@ -140,6 +142,8 @@ print("Python öğrenmeye hazır mısın?")
       // Reset the fail streak after help video logic runs
       if (helpVideoTriggered) {
         codeExecution.resetFailStreak();
+        // Also clear the help video shown status so it can be shown again after another streak
+        videoManager.clearHelpVideoShownStatus($currentLessonState.currentLesson.id, $currentLessonState.currentStep.id);
       }
     }
   }

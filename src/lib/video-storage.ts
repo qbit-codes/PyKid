@@ -448,6 +448,22 @@ export class VideoTriggerManager {
   }
 
   /**
+   * Clear help video shown status for a specific lesson/step
+   */
+  static clearHelpVideoShownStatus(lessonId: string, stepId?: string): void {
+    const sessionData = this.getSessionData();
+    if (!sessionData.helpVideosShown) return;
+    
+    const key = stepId ? `${lessonId}:${stepId}` : lessonId;
+    const index = sessionData.helpVideosShown.indexOf(key);
+    
+    if (index > -1) {
+      sessionData.helpVideosShown.splice(index, 1);
+      this.saveSessionData(sessionData);
+    }
+  }
+
+  /**
    * Clear session data (call on lesson/step change)
    */
   static clearSession(): void {

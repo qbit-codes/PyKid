@@ -309,7 +309,18 @@
 </script>
 
 <div class="video-player {className}">
-  {#if isLoading}
+  {#if isLoading && videoMetadata?.thumbnail}
+    <div class="thumbnail-loading-state">
+      <img src={videoMetadata.thumbnail} alt="Video thumbnail" class="loading-thumbnail" />
+      <div class="loading-overlay">
+        {#if loadingProgress > 0}
+          <div class="loading-progress">
+            <div class="progress-bar" style="width: {loadingProgress}%"></div>
+          </div>
+        {/if}
+      </div>
+    </div>
+  {:else if isLoading}
     <div class="loading-state">
       <div class="loading-spinner"></div>
       <div class="loading-text">Video yükleniyor...</div>
@@ -474,6 +485,49 @@
     justify-content: center;
     color: white;
     gap: 1rem;
+  }
+
+  .thumbnail-loading-state {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .loading-thumbnail {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.7) blur(1px);
+  }
+
+  .loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
+  }
+
+  .thumbnail-loading-state .loading-progress {
+    width: 80%;
+    max-width: 300px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .thumbnail-loading-state .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    transition: width 0.3s ease;
+    border-radius: 3px;
   }
   
   .loading-spinner {

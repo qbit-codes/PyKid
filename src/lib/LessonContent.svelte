@@ -484,26 +484,37 @@
 
   /* Video Section */
   .video-section {
-    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
-    border: 2px solid #d1d5db;
-    border-radius: 10px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border: 2px solid #2563eb;
+    border-radius: 12px;
     margin: 1.5rem 0;
     overflow: hidden;
+    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3), 0 0 20px rgba(59, 130, 246, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .video-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4), 0 0 25px rgba(59, 130, 246, 0.15);
   }
 
   .video-header {
-    background: #6b7280;
+    background: rgba(0, 0, 0, 0.2);
     color: white;
-    padding: 0.75rem;
-    font-weight: 600;
+    padding: 1rem;
+    font-weight: 700;
+    font-size: 1.1rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    backdrop-filter: blur(10px);
   }
 
   .video-content {
-    height: 300px;
+    height: 350px;
     background: #000;
+    position: relative;
+    overflow: hidden;
   }
 
   :global(.lesson-video-player) {
@@ -562,6 +573,7 @@
         ← Derslere Dön
       </button>
     </div>
+
 
     <!-- Step content -->
     <div class="step-content">
@@ -640,28 +652,6 @@
       </div>
     {/if}
 
-    <!-- Video section -->
-    {#if step.videoUrl || (lesson && step)}
-      <div class="video-section">
-        <div class="video-header">
-          🎥 Video Açıklaması
-        </div>
-        <div class="video-content">
-          {#await import('$lib/VideoPlayer.svelte') then { default: VideoPlayer }}
-            <VideoPlayer
-              lessonId={lesson?.id || ''}
-              stepId={step?.id}
-              videoType="explanation"
-              autoplay={false}
-              showControls={true}
-              className="lesson-video-player"
-              on:play={(e) => handleVideoPlay(e.detail)}
-              on:watchTime={(e) => handleVideoWatchTime(e.detail)}
-            />
-          {/await}
-        </div>
-      </div>
-    {/if}
 
   {:else}
     <div class="empty-state">

@@ -139,6 +139,11 @@ export function useVideoManager() {
     }
   }
 
+  // Clear help video shown status so it can be triggered again
+  function clearHelpVideoShownStatus(lessonId: string, stepId: string) {
+    VideoTriggerManager.clearHelpVideoShownStatus(lessonId, stepId);
+  }
+
   // Handle video player events
   function handleVideoPlay() {
     videoState.update(state => ({
@@ -177,20 +182,38 @@ export function useVideoManager() {
   }
 
   // Update video when lesson/step changes
-  function updateVideoForLesson(lesson: Lesson | null, step: LessonStep | null) {
+  async function updateVideoForLesson(lesson: Lesson | null, step: LessonStep | null) {
     if (lesson && step) {
-      videoState.update(state => {
-        // Only update if no specific video is already loaded
-        if (!state.currentVideoLessonId) {
-          return {
+      // First try to load explanation video for this step
+      try {
+        const explanationVideo = await videoStorage.getVideoForLesson(lesson.id, step.id, 'explanation');
+        if (explanationVideo) {
+          videoState.update(state => ({
             ...state,
             currentVideoLessonId: lesson.id,
             currentVideoStepId: step.id,
-            currentVideoType: 'intro'
-          };
+            currentVideoType: 'explanation'
+          }));
+          return;
         }
-        return state;
-      });
+      } catch (error) {
+        // Silent fallback to intro video
+      }
+      
+      // Fallback to intro video if no explanation video exists
+      try {
+        const introVideo = await videoStorage.getVideoForLesson(lesson.id, undefined, 'intro');
+        if (introVideo) {
+          videoState.update(state => ({
+            ...state,
+            currentVideoLessonId: lesson.id,
+            currentVideoStepId: undefined,
+            currentVideoType: 'intro'
+          }));
+        }
+      } catch (error) {
+        // No videos available
+      }
     }
   }
 
@@ -210,6 +233,7 @@ export function useVideoManager() {
     
     // State management
     setPendingAutoProgression,
-    updateVideoForLesson
+    updateVideoForLesson,
+    clearHelpVideoShownStatus
   };
 }
