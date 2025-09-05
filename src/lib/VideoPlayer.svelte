@@ -42,12 +42,14 @@
   }
   
   async function loadVideo() {
+    console.log('🎬 Loading video for:', { lessonId, stepId, videoType });
     isLoading = true;
     hasError = false;
     retryCount = 0;
     
     try {
       videoMetadata = await videoStorage.getVideoForLesson(lessonId, stepId, videoType);
+      console.log('📹 Video metadata loaded:', videoMetadata);
       
       if (!videoMetadata) {
         throw new Error('Video not found for this lesson');
@@ -56,14 +58,17 @@
       await loadVideoElement();
       
     } catch (error) {
+      console.error('❌ Video loading error:', error);
       handleError(error as Error);
     }
   }
   
   async function loadVideoElement() {
+    console.log('📺 Loading video element, metadata:', !!videoMetadata, 'element:', !!videoElement);
     if (!videoMetadata || !videoElement) return;
     
     const videoUrls = videoStorage.getVideoUrls(videoMetadata.id);
+    console.log('🔗 Generated video URLs:', videoUrls);
     
     // Clear existing sources
     videoElement.innerHTML = '';
@@ -73,6 +78,7 @@
       const source = document.createElement('source');
       source.src = url;
       source.type = type;
+      console.log('➕ Adding source:', url, type);
       videoElement.appendChild(source);
     });
     
@@ -90,6 +96,7 @@
     }
     
     // Load the video
+    console.log('▶️ Calling video.load()');
     videoElement.load();
   }
   
@@ -124,6 +131,7 @@
   }
   
   function onLoadedData() {
+    console.log('✅ Video loaded successfully, duration:', videoElement.duration);
     isLoading = false;
     duration = videoElement.duration;
     
@@ -136,6 +144,7 @@
     
     // Autoplay if enabled and supported
     if (autoplay && VIDEO_PLAYER_CONFIG.autoplay.enabled) {
+      console.log('🚀 Auto-playing video');
       playVideo();
     }
   }
@@ -331,28 +340,29 @@
     </div>
   {/if}
   
-  {#if !isLoading && !hasError}
-    <video
-      bind:this={videoElement}
-      class="video-element"
-      playsinline
-      preload="metadata"
-      on:loadeddata={onLoadedData}
-      on:loadstart={onLoadStart}
-      on:progress={onProgress}
-      on:play={() => { isPlaying = true; }}
-      on:pause={() => { isPlaying = false; }}
-      on:ended={onEnded}
-      on:timeupdate={onTimeUpdate}
-      on:error={(e) => handleError(new Error('Video playback error'))}
-    >
-      <!-- Sources and tracks are added dynamically -->
-      <!-- Default empty track for accessibility compliance -->
-      <track kind="captions" src="" srclang="tr" label="Türkçe" />
-    </video>
+  <!-- Video element - always present for proper event handling -->
+  <video
+    bind:this={videoElement}
+    class="video-element"
+    class:hidden={isLoading || hasError}
+    playsinline
+    preload="metadata"
+    on:loadeddata={onLoadedData}
+    on:loadstart={onLoadStart}
+    on:progress={onProgress}
+    on:play={() => { isPlaying = true; }}
+    on:pause={() => { isPlaying = false; }}
+    on:ended={onEnded}
+    on:timeupdate={onTimeUpdate}
+    on:error={(e) => handleError(new Error('Video playback error'))}
+  >
+    <!-- Sources and tracks are added dynamically -->
+    <!-- Default empty track for accessibility compliance -->
+    <track kind="captions" src="" srclang="tr" label="Türkçe" />
+  </video>
     
-    <!-- Custom Controls -->
-    {#if showControls && videoMetadata}
+  <!-- Custom Controls -->
+  {#if showControls && videoMetadata && !isLoading && !hasError}
       <div class="video-controls">
         <div class="progress-container">
           <div 
@@ -422,8 +432,6 @@
         </div>
       </div>
     {/if}
-    
-  {/if}
 </div>
 
 <style>
@@ -443,6 +451,11 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
+  }
+  
+  .video-element.hidden {
+    opacity: 0;
+    pointer-events: none;
   }
   
   /* Loading State */
