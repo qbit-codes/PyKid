@@ -116,7 +116,7 @@
     padding: 1.5rem;
     max-height: 80vh;
     overflow-y: auto;
-    background: white;
+    background: #f0efed;
     border-radius: 0.5rem;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   }
@@ -258,7 +258,7 @@
   }
   
   .button-primary {
-    background: #3b82f6;
+    background: #448bd1;
     color: white;
   }
   
@@ -268,7 +268,7 @@
   }
   
   .button-danger {
-    background: #dc2626;
+    background: #f86262;
     color: white;
   }
   
