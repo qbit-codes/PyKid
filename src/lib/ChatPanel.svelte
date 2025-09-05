@@ -5,6 +5,7 @@
   export let getCurrentEditorContent: () => string = () => '';
   export let getCurrentLessonContext: () => string = () => '';
   export let onChatInteraction: () => void = () => {};
+  export let onLessonStepChange: () => void = () => {};
 
   let input = '';
   
@@ -16,6 +17,50 @@
 
   // Streaming mode selection checkbox
   let useStream = true;
+
+  // Function to update chat on lesson/step change
+  export function updateForLessonChange() {
+    if (!hasInitialized || sending) return;
+    
+    const lessonContext = getCurrentLessonContext();
+    const editorContent = getCurrentEditorContent();
+    
+    if (lessonContext) {
+      // Extract lesson and step info from context
+      const contextParts = lessonContext.split(' ');
+      let lessonTitle = 'yeni bir konuya';
+      let stepTitle = '';
+      
+      // Try to extract meaningful lesson/step names
+      const titleMatch = lessonContext.match(/"([^"]+)"/g);
+      if (titleMatch && titleMatch.length >= 2) {
+        lessonTitle = titleMatch[0].replace(/"/g, '');
+        stepTitle = titleMatch[1].replace(/"/g, '');
+      }
+      
+      // Create contextual welcome message
+      let welcomeMessage = `🎯 Yeni adıma hoş geldin! `;
+      
+      if (stepTitle) {
+        welcomeMessage += `Şimdi "${stepTitle}" konusunda çalışıyoruz. `;
+      }
+      
+      // Add specific help based on content
+      if (lessonContext.includes('alıştırma')) {
+        welcomeMessage += `Bu alıştırmada takıldığın bir yer olursa, çekinmeden sor! Kodunu adım adım inceler ve ipuçları veririm. 💡`;
+      } else if (lessonContext.includes('teori')) {
+        welcomeMessage += `Bu konuyu anlamana yardım edebilirim. Merak ettiğin bir şey var mı? 🤔`;
+      } else {
+        welcomeMessage += `Bu konuda sana nasıl yardımcı olabilirim? Sorularını bekliyorum! 😊`;
+      }
+      
+      // Add the lesson change notification to history
+      history = [...history, {
+        role: 'assistant',
+        content: welcomeMessage
+      }];
+    }
+  }
 
   // Ada Teacher's proactive conversation starter with lesson context awareness
   async function initializeConversation() {

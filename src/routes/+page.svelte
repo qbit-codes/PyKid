@@ -71,6 +71,9 @@ async function tryAutoplayWithAudio() {
   
   // Attempt tracking
   let currentAttemptId: string | null = null;
+  
+  // Chat panel reference for updates
+  let chatPanelComponent: any = null;
 
   const pyodideReady = usePyodide();
 
@@ -739,6 +742,11 @@ function onReplay(ev: Event) {
             editor.setValue(lessonComments);
           }
           
+          // Update chat for lesson change
+          if (chatPanelComponent?.updateForLessonChange) {
+            chatPanelComponent.updateForLessonChange();
+          }
+          
           // Show progression message
           output += `\n\n🎉 Harika! Bir sonraki adıma geçiyoruz: "${nextStep.title}"\n`;
         } else {
@@ -757,6 +765,11 @@ function onReplay(ev: Event) {
               editor.setValue(lessonComments);
             }
             
+            // Update chat for lesson change
+            if (chatPanelComponent?.updateForLessonChange) {
+              chatPanelComponent.updateForLessonChange();
+            }
+            
             output += `\n\n🎯 Tüm adımları tamamladın! Final projesine geçiyoruz: "${lesson.finalProject.title}"\n`;
           } else {
             // Mark lesson as completed and move to next lesson
@@ -770,6 +783,11 @@ function onReplay(ev: Event) {
               if (editor) {
                 const lessonComments = generateLessonComments(nextLesson, nextLesson.steps[0]);
                 editor.setValue(lessonComments);
+              }
+              
+              // Update chat for lesson change
+              if (chatPanelComponent?.updateForLessonChange) {
+                chatPanelComponent.updateForLessonChange();
               }
               
               output += `\n\n🌟 Dersi tamamladın! Bir sonraki derse geçiyoruz: "${nextLesson.title}"\n`;
@@ -834,6 +852,11 @@ function onReplay(ev: Event) {
       const lessonComments = generateLessonComments(lesson, currentStep);
       editor.setValue(lessonComments);
     }
+    
+    // Update chat for lesson change
+    if (chatPanelComponent?.updateForLessonChange) {
+      chatPanelComponent.updateForLessonChange();
+    }
   }
 
   function handleStepSelect(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
@@ -845,6 +868,11 @@ function onReplay(ev: Event) {
     if (editor) {
       const lessonComments = generateLessonComments(lesson, step);
       editor.setValue(lessonComments);
+    }
+    
+    // Update chat for lesson change
+    if (chatPanelComponent?.updateForLessonChange) {
+      chatPanelComponent.updateForLessonChange();
     }
   }
 
@@ -1011,6 +1039,13 @@ function onReplay(ev: Event) {
         }
       }
     }
+    
+    // Update chat for lesson change (delayed to ensure chat component is ready)
+    setTimeout(() => {
+      if (chatPanelComponent?.updateForLessonChange) {
+        chatPanelComponent.updateForLessonChange();
+      }
+    }, 1000);
   }
 
   // Keyboard shortcut to open lesson selector
@@ -1371,7 +1406,12 @@ function tryForceUnmute(v: HTMLVideoElement) {
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
         <div class="relative z-[1] h-full">
-          <ChatPanel {getCurrentEditorContent} {getCurrentLessonContext} onChatInteraction={handleChatInteraction} />
+          <ChatPanel 
+            bind:this={chatPanelComponent}
+            {getCurrentEditorContent} 
+            {getCurrentLessonContext} 
+            onChatInteraction={handleChatInteraction} 
+          />
         </div>
       </div>
     </div>
