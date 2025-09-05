@@ -286,6 +286,75 @@ export class VideoStorageManager {
   }
 
   /**
+   * Load generic video metadata
+   */
+  private async loadGenericVideoMetadata(type: 'help' | 'congratulations' | 'explanation'): Promise<VideoMetadata | null> {
+    console.log('🔍 loadGenericVideoMetadata called for type:', type);
+    
+    try {
+      // Try to load from static manifest file first
+      const manifestUrl = `${this.config.baseUrl}manifest.json`;
+      console.log('📥 Fetching manifest from:', manifestUrl);
+      
+      const response = await fetch(manifestUrl);
+      console.log('📡 Manifest fetch response:', response.status, response.ok);
+      
+      if (response.ok) {
+        const manifest: VideoMetadata[] = await response.json();
+        console.log('📋 Manifest loaded, total videos:', manifest.length);
+        
+        // First try to find a truly generic video (no lessonId)
+        let video = manifest.find(v => v.type === type && !v.lessonId);
+        console.log('🎯 Found generic video (no lessonId):', !!video, video?.id);
+        
+        if (video) {
+          console.log('✅ Returning generic video:', video);
+          return video;
+        }
+        
+        // Fallback: use the first video of this type as a generic one
+        video = manifest.find(v => v.type === type);
+        console.log('🔄 Found first video of type:', !!video, video?.id);
+        
+        if (video) {
+          console.log('✅ Returning first video of type:', video);
+          return video;
+        }
+        
+        console.log('❌ No videos found of type:', type);
+      } else {
+        console.log('❌ Manifest fetch failed:', response.status);
+      }
+    } catch (error) {
+      console.warn('💥 Failed to load video manifest for generic video:', error);
+    }
+
+    console.log('🔧 Generating fallback metadata for type:', type);
+    
+    // Fallback: Generate metadata for generic videos
+    const fallbackMetadata = {
+      id: type,
+      lessonId: '', // Generic videos don't belong to a specific lesson
+      type,
+      title: type === 'help' ? 'Yardım' : 
+             type === 'congratulations' ? 'Tebrikler' : 
+             type === 'explanation' ? 'Açıklama' : type,
+      description: type === 'help' ? 'Yardım videosu' : 
+                   type === 'congratulations' ? 'Tebrikler videosu' :
+                   type === 'explanation' ? 'Açıklama videosu' : `${type} videosu`,
+      triggers: {
+        failedAttempts: type === 'help' ? 3 : undefined,
+        lessonComplete: type === 'congratulations',
+        lessonStart: type === 'explanation',
+        manualOnly: false
+      }
+    };
+    
+    console.log('📦 Generated fallback metadata:', fallbackMetadata);
+    return fallbackMetadata;
+  }
+
+  /**
    * Generate fallback metadata based on naming conventions
    */
   private generateFallbackMetadata(lessonId: string, stepId?: string, type?: VideoMetadata['type']): VideoMetadata | null {
@@ -318,6 +387,35 @@ export class VideoStorageManager {
         manualOnly: false
       }
     };
+  }
+
+  /**
+   * Get generic video metadata (help, congratulations, explanation, etc.)
+   */
+  async getGenericVideo(type: 'help' | 'congratulations' | 'explanation'): Promise<VideoMetadata | null> {
+    const cacheKey = `generic:${type}`;
+    
+    if (this.config.cacheEnabled && this.videoCache.has(cacheKey)) {
+      return this.videoCache.get(cacheKey) || null;
+    }
+
+    // Check if we're already loading this video
+    if (this.loadingPromises.has(cacheKey)) {
+      return this.loadingPromises.get(cacheKey)!;
+    }
+
+    const loadPromise = this.loadGenericVideoMetadata(type);
+    this.loadingPromises.set(cacheKey, loadPromise);
+
+    try {
+      const metadata = await loadPromise;
+      if (metadata && this.config.cacheEnabled) {
+        this.videoCache.set(cacheKey, metadata);
+      }
+      return metadata;
+    } finally {
+      this.loadingPromises.delete(cacheKey);
+    }
   }
 
   /**

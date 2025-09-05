@@ -17,6 +17,7 @@
   export let stepId: string | undefined = undefined;
   export let videoType: VideoMetadata['type'] | undefined = undefined;
   export let autoplay = true;
+  export let autoUnmute = false; // New option to unmute after autoplay starts
   export let showControls = true;
   export let className = '';
   
@@ -37,25 +38,39 @@
   let retryCount = 0;
   let loadingProgress = 0;
   
-  $: if (lessonId) {
+  $: if (lessonId || stepId !== undefined || videoType !== undefined) {
+    console.log('🔄 VideoPlayer reactive trigger - lessonId:', lessonId, 'stepId:', stepId, 'videoType:', videoType);
     loadVideo();
   }
   
   async function loadVideo() {
-    console.log('🎬 Loading video for:', { lessonId, stepId, videoType });
+    console.log('🎬 VideoPlayer.loadVideo called with:', { lessonId, stepId, videoType });
     isLoading = true;
     hasError = false;
     retryCount = 0;
     
     try {
-      videoMetadata = await videoStorage.getVideoForLesson(lessonId, stepId, videoType);
+      // For help, congratulations, and explanation videos, use generic video loader
+      if (videoType === 'help' || videoType === 'congratulations' || videoType === 'explanation') {
+        console.log('🔧 Using getGenericVideo for type:', videoType);
+        videoMetadata = await videoStorage.getGenericVideo(videoType);
+        console.log('📦 getGenericVideo returned:', videoMetadata);
+      } else {
+        console.log('🔧 Using getVideoForLesson for lesson:', lessonId, 'step:', stepId, 'type:', videoType);
+        videoMetadata = await videoStorage.getVideoForLesson(lessonId, stepId, videoType);
+        console.log('📦 getVideoForLesson returned:', videoMetadata);
+      }
+      
       console.log('📹 Video metadata loaded:', videoMetadata);
       
       if (!videoMetadata) {
+        console.log('❌ No video metadata - throwing error');
         throw new Error('Video not found for this lesson');
       }
       
+      console.log('▶️ Calling loadVideoElement...');
       await loadVideoElement();
+      console.log('✅ loadVideoElement completed');
       
     } catch (error) {
       console.error('❌ Video loading error:', error);
@@ -132,10 +147,14 @@
   
   function onLoadedData() {
     console.log('✅ Video loaded successfully, duration:', videoElement.duration);
+    console.log('🎯 Video metadata:', videoMetadata);
+    console.log('🎚️ Autoplay settings:', { autoplay, configEnabled: VIDEO_PLAYER_CONFIG.autoplay.enabled });
+    
     isLoading = false;
     duration = videoElement.duration;
     
     if (videoMetadata) {
+      console.log('📤 Dispatching loaded event for video:', videoMetadata.id);
       dispatch('loaded', { 
         videoId: videoMetadata.id, 
         metadata: videoMetadata 
@@ -146,6 +165,8 @@
     if (autoplay && VIDEO_PLAYER_CONFIG.autoplay.enabled) {
       console.log('🚀 Auto-playing video');
       playVideo();
+    } else {
+      console.log('⏸️ Not auto-playing - autoplay:', autoplay, 'config enabled:', VIDEO_PLAYER_CONFIG.autoplay.enabled);
     }
   }
   
@@ -160,26 +181,54 @@
   }
   
   async function playVideo() {
-    if (!videoElement || !videoMetadata) return;
+    console.log('▶️ playVideo called - element:', !!videoElement, 'metadata:', !!videoMetadata);
+    
+    if (!videoElement || !videoMetadata) {
+      console.log('❌ Cannot play - missing element or metadata');
+      return;
+    }
     
     try {
-      // Ensure video is muted for autoplay
-      if (autoplay) {
+      // Handle muting for autoplay
+      if (autoplay && !autoUnmute) {
+        console.log('🔇 Muting video for autoplay (autoUnmute=false)');
         videoElement.muted = true;
         isMuted = true;
+      } else if (autoplay && autoUnmute) {
+        console.log('🔇 Starting muted for autoplay, will unmute after play starts (autoUnmute=true)');
+        videoElement.muted = true;
+        isMuted = true;
+      } else {
+        console.log('🔊 Not muting - not autoplay or explicit unmute requested');
       }
       
+      console.log('🎬 Calling videoElement.play()...');
       await videoElement.play();
+      console.log('✅ Video is now playing!');
+      
+      // Auto-unmute after successful autoplay if requested
+      if (autoplay && autoUnmute) {
+        console.log('🔊 Auto-unmuting video after successful autoplay');
+        setTimeout(() => {
+          if (videoElement && isPlaying) {
+            videoElement.muted = false;
+            isMuted = false;
+            console.log('🔊 Video unmuted successfully');
+          }
+        }, 500); // Small delay to ensure autoplay has started
+      }
+      
       isPlaying = true;
       watchStartTime = Date.now();
       
+      console.log('📤 Dispatching play event for video:', videoMetadata.id);
       dispatch('play', { 
         videoId: videoMetadata.id, 
         metadata: videoMetadata 
       });
       
     } catch (error) {
-      console.error('Play error:', error);
+      console.error('💥 Play error:', error);
       handleError(error as Error);
     }
   }
@@ -361,77 +410,24 @@
     <track kind="captions" src="" srclang="tr" label="Türkçe" />
   </video>
     
-  <!-- Custom Controls -->
-  {#if showControls && videoMetadata && !isLoading && !hasError}
-      <div class="video-controls">
-        <div class="progress-container">
-          <div 
-            class="progress-track" 
-            role="button"
-            tabindex="0"
-            aria-label="Video ilerleme çubuğu - tıklayarak konuma gidebilirsiniz"
-            on:click={(e) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const clickX = e.clientX - rect.left;
-              const clickRatio = clickX / rect.width;
-              seekTo(duration * clickRatio);
-            }}
-            on:keydown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                const rect = e.currentTarget.getBoundingClientRect();
-                const centerX = rect.width / 2;
-                const clickRatio = centerX / rect.width;
-                seekTo(duration * clickRatio);
-              }
-            }}
-          >
-            <div class="progress-played" style="width: {(currentTime / duration) * 100}%"></div>
-            <div class="progress-buffered" style="width: {loadingProgress}%"></div>
-          </div>
-        </div>
-        
-        <div class="controls-row">
-          <button class="control-button play-pause" on:click={togglePlay}>
-            {#if isPlaying}
-              ⏸️
-            {:else}
-              ▶️
-            {/if}
-          </button>
-          
-          <div class="time-display">
-            {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')} / 
-            {Math.floor(duration / 60)}:{(Math.floor(duration % 60)).toString().padStart(2, '0')}
-          </div>
-          
-          <div class="volume-control">
-            <button class="control-button" on:click={toggleMute}>
-              {#if isMuted || volume === 0}
-                🔇
-              {:else if volume < 0.5}
-                🔉
-              {:else}
-                🔊
-              {/if}
-            </button>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              bind:value={volume}
-              on:input={(e) => setVolume(parseFloat(e.currentTarget.value))}
-              class="volume-slider"
-            />
-          </div>
-          
-          <div class="video-title">
-            {videoMetadata.title}
-          </div>
-        </div>
-      </div>
-    {/if}
+  <!-- Auto-unmute button when video is muted due to autoplay -->
+  {#if isPlaying && isMuted && autoplay && !autoUnmute}
+    <div class="auto-unmute-overlay">
+      <button 
+        class="unmute-button" 
+        on:click={() => {
+          if (videoElement) {
+            videoElement.muted = false;
+            isMuted = false;
+          }
+        }}
+        aria-label="Sesi aç"
+      >
+        🔊 Sesi Aç
+      </button>
+    </div>
+  {/if}
+
 </div>
 
 <style>
@@ -539,133 +535,47 @@
     background: rgba(255, 255, 255, 0.3);
   }
   
-  /* Controls */
-  .video-controls {
+  
+  /* Auto-unmute overlay */
+  .auto-unmute-overlay {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-    padding: 1rem;
-    transform: translateY(100%);
-    transition: transform 0.3s ease;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
   }
   
-  .video-player:hover .video-controls {
-    transform: translateY(0);
-  }
-  
-  .progress-container {
-    margin-bottom: 0.5rem;
-  }
-  
-  .progress-track {
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    position: relative;
-    cursor: pointer;
-  }
-  
-  .progress-played {
-    height: 100%;
-    background: #4f46e5;
-    border-radius: 2px;
-    transition: width 0.1s ease;
-  }
-  
-  .progress-buffered {
-    position: absolute;
-    top: 0;
-    height: 100%;
-    background: rgba(255, 255, 255, 0.5);
-    border-radius: 2px;
-  }
-  
-  .controls-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  .unmute-button {
+    background: rgba(0, 0, 0, 0.8);
     color: white;
-  }
-  
-  .control-button {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1.2rem;
+    border: 2px solid rgba(255, 255, 255, 0.8);
+    padding: 1rem 1.5rem;
+    border-radius: 2rem;
+    font-size: 1rem;
+    font-weight: 600;
     cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 4px;
-    transition: background 0.2s ease;
+    transition: all 0.3s ease;
+    animation: pulse 2s infinite;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   }
   
-  .control-button:hover {
-    background: rgba(255, 255, 255, 0.2);
+  .unmute-button:hover {
+    background: rgba(0, 0, 0, 0.9);
+    border-color: white;
+    transform: scale(1.05);
   }
   
-  .play-pause {
-    font-size: 1.5rem;
+  @keyframes pulse {
+    0% { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
+    50% { box-shadow: 0 4px 30px rgba(255, 255, 255, 0.3); }
+    100% { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); }
   }
-  
-  .time-display {
-    font-size: 0.875rem;
-    font-family: monospace;
-    min-width: 100px;
-  }
-  
-  .volume-control {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-  }
-  
-  .volume-slider {
-    width: 60px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 2px;
-    appearance: none;
-    cursor: pointer;
-  }
-  
-  .volume-slider::-webkit-slider-thumb {
-    appearance: none;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: white;
-    cursor: pointer;
-  }
-  
-  .video-title {
-    flex: 1;
-    text-align: right;
-    font-size: 0.875rem;
-    opacity: 0.8;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  
   
   /* Responsive adjustments */
   @media (max-width: 768px) {
-    .controls-row {
-      gap: 0.25rem;
-    }
-    
-    .time-display {
-      font-size: 0.75rem;
-      min-width: 80px;
-    }
-    
-    .video-title {
-      display: none;
-    }
-    
-    .volume-control {
-      display: none;
+    .unmute-button {
+      padding: 0.8rem 1.2rem;
+      font-size: 0.9rem;
     }
   }
 </style>

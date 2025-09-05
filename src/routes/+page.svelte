@@ -51,6 +51,9 @@ print("Python öğrenmeye hazır mısın?")
 
   // Reactive subscriptions to stores from composables
   $: currentVideoState = videoManager.videoState;
+  $: {
+    console.log('📺 Video state changed:', $currentVideoState);
+  }
   $: currentLessonState = lessonManager.lessonState;  
   $: currentPanelSizes = panelResize.panelSizes;
   $: currentConstraints = panelResize.constraints;
@@ -92,7 +95,8 @@ print("Python öğrenmeye hazır mısın?")
       $currentLessonState.currentStep,
       lessonManager.getCurrentLessonContext
     );
-
+    console.log(`Result: ${result.success}`)
+    console.log(`Failed: ${result.failStreak}`)
     if (result.success) {
       // Handle successful execution
       handleSuccessfulExecution();
@@ -131,20 +135,31 @@ print("Python öğrenmeye hazır mısın?")
 
   // Handle failed code execution
   async function handleFailedExecution(failStreak: number) {
+    console.log('❌ handleFailedExecution called with failStreak:', failStreak);
+    console.log('📚 Current lesson/step:', $currentLessonState.currentLesson?.id, $currentLessonState.currentStep?.id);
+    
     // Check for help video trigger at 3 failures
     if (failStreak >= 3 && $currentLessonState.currentLesson && $currentLessonState.currentStep) {
+      console.log('🎯 Triggering help video check for 3+ failures...');
       const helpVideoTriggered = await videoManager.checkHelpVideo(
         $currentLessonState.currentLesson,
         $currentLessonState.currentStep,
         failStreak
       );
       
+      console.log('🎬 Help video triggered result:', helpVideoTriggered);
+      
       // Reset the fail streak after help video logic runs
       if (helpVideoTriggered) {
+        console.log('🔄 Resetting fail streak and clearing help video shown status');
         codeExecution.resetFailStreak();
         // Also clear the help video shown status so it can be shown again after another streak
         videoManager.clearHelpVideoShownStatus($currentLessonState.currentLesson.id, $currentLessonState.currentStep.id);
+      } else {
+        console.log('⏭️ Help video was not triggered');
       }
+    } else {
+      console.log('⏸️ Not checking help video - failStreak < 3 or missing lesson/step data');
     }
   }
 
@@ -391,6 +406,7 @@ print("Python öğrenmeye hazır mısın?")
             stepId={$currentVideoState.currentVideoStepId}
             videoType={$currentVideoState.currentVideoType}
             autoplay={true}
+            autoUnmute={true}
             showControls={true}
             className="w-full h-full rounded-[0.5rem]"
             on:play={handleVideoPlay}

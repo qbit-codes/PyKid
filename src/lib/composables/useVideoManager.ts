@@ -35,8 +35,8 @@ export function useVideoManager() {
     //}
     
     try {
-      // Get intro video for this lesson
-      const videoMetadata = await videoStorage.getVideoForLesson(lesson.id, step.id, 'explanation');
+      // Get generic explanation video
+      const videoMetadata = await videoStorage.getGenericVideo('explanation');
       console.log(`video metadata: ${videoMetadata?.type} ${videoMetadata?.id}`)
       
       if (videoMetadata && videoStorage.shouldTriggerVideo(videoMetadata, { isLessonStart: true })) {
@@ -62,37 +62,68 @@ export function useVideoManager() {
   }
 
   async function checkHelpVideo(lesson: Lesson, step: LessonStep, failedAttempts: number) {
-    if (!lesson || !step) return false;
+    console.log('🆘 checkHelpVideo called:', { 
+      lessonId: lesson?.id, 
+      stepId: step?.id, 
+      failedAttempts 
+    });
     
-    // Check if help video has already been shown for this streak
-    if (VideoTriggerManager.hasShownHelpVideoForStreak(lesson.id, step.id)) {
+    if (!lesson || !step) {
+      console.log('❌ Missing lesson or step data');
       return false;
     }
     
+    // Check if help video has already been shown for this streak
+    const hasShownBefore = VideoTriggerManager.hasShownHelpVideoForStreak(lesson.id, step.id);
+    console.log('🔍 Has shown help video before for this streak:', hasShownBefore);
+    //if (hasShownBefore) {
+    //  console.log('⏭️ Help video already shown for this streak, skipping');
+    //  return false;
+    //}
+    
     try {
-      // Get help video for this lesson
-      const videoMetadata = await videoStorage.getVideoForLesson(lesson.id, step.id, 'help');
+      console.log('📥 Attempting to get generic help video...');
+      // Get generic help video
+      const videoMetadata = await videoStorage.getGenericVideo('help');
+      console.log('📹 Help video metadata:', videoMetadata);
       
-      if (videoMetadata && videoStorage.shouldTriggerVideo(videoMetadata, { 
-        failedAttemptCount: failedAttempts 
-      })) {
-        // Mark as shown for this streak
-        VideoTriggerManager.markHelpVideoShown(lesson.id, step.id);
+      if (videoMetadata) {
+        const shouldTrigger = videoStorage.shouldTriggerVideo(videoMetadata, { 
+          failedAttemptCount: failedAttempts 
+        });
+        console.log('🎯 Should trigger help video:', shouldTrigger, 'for failedAttempts:', failedAttempts);
         
-        // Update video state
-        videoState.update(state => ({
-          ...state,
-          currentVideoLessonId: lesson.id,
-          currentVideoStepId: step.id,
-          currentVideoType: 'help'
-        }));
-        
-        return true; // Video was triggered
+        if (shouldTrigger) {
+          console.log('✅ Triggering help video!');
+          // Mark as shown for this streak
+          VideoTriggerManager.markHelpVideoShown(lesson.id, step.id);
+          console.log('📝 Marked help video as shown for streak');
+          
+          // Update video state
+          videoState.update(state => {
+            const newState = {
+              ...state,
+              currentVideoLessonId: lesson.id,
+              currentVideoStepId: step.id,
+              currentVideoType: 'help' as const
+            };
+            console.log('🔄 Updated video state:', newState);
+            return newState;
+          });
+          
+          console.log('🎉 Help video triggered successfully!');
+          return true; // Video was triggered
+        } else {
+          console.log('🚫 Video should not trigger based on conditions');
+        }
+      } else {
+        console.log('❌ No help video metadata found');
       }
     } catch (error) {
-      console.error('Error loading help video:', error);
+      console.error('💥 Error loading help video:', error);
     }
     
+    console.log('❌ Help video was not triggered');
     return false;
   }
 
@@ -188,9 +219,9 @@ export function useVideoManager() {
   // Update video when lesson/step changes
   async function updateVideoForLesson(lesson: Lesson | null, step: LessonStep | null) {
     if (lesson && step) {
-      // First try to load explanation video for this step
+      // Try to load generic explanation video
       try {
-        const explanationVideo = await videoStorage.getVideoForLesson(lesson.id, step.id, 'explanation');
+        const explanationVideo = await videoStorage.getGenericVideo('explanation');
         if (explanationVideo) {
           videoState.update(state => ({
             ...state,
