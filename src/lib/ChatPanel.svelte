@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ADA_TEACHER_PROMPT } from '$lib/prompts/adaTeacher';
-  
+  import { tick } from 'svelte';
+
   // Props for getting current lesson context
   export let getCurrentEditorContent: () => string = () => '';
   export let getCurrentLessonContext: () => string = () => '';
@@ -17,6 +18,7 @@
 
   // Streaming mode selection checkbox
   let useStream = true;
+  let followWhileStreaming = false;
 
   // Function to update chat on lesson/step change
   export function updateForLessonChange() {
@@ -115,9 +117,10 @@
 
   // Chat container reference for auto-scrolling
   let messagesContainer: HTMLElement;
-
+  
   // Auto-scroll to bottom when messages change
-  $: if (messagesContainer && history.length > 0) {
+  // Follow only while streaming to avoid disrupting user -- followWhileStreaming added
+  $: if (messagesContainer && history.length > 0 && followWhileStreaming) {
     setTimeout(() => {
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }, 0);
@@ -235,6 +238,7 @@
             const { delta } = JSON.parse(dataLine.slice(6));
             if (delta) {
               history[aiIndex].content += delta;
+              followWhileStreaming=true;
               history = [...history]; // Trigger re-render
             }
           } catch { /* Ignore parsing errors */ }
@@ -245,6 +249,7 @@
       history = [...history];
     } finally {
       sending = false;
+      followWhileStreaming=false;
     }
   }
 
