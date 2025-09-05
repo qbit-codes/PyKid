@@ -95,8 +95,8 @@ print("Python öğrenmeye hazır mısın?")
       // Handle successful execution
       handleSuccessfulExecution();
     } else {
-      // Handle failed execution
-      handleFailedExecution();
+      // Handle failed execution with the current fail streak
+      await handleFailedExecution(result.failStreak);
     }
   }
 
@@ -128,16 +128,19 @@ print("Python öğrenmeye hazır mısın?")
   }
 
   // Handle failed code execution
-  async function handleFailedExecution() {
-    const failStreak = codeExecution.getCurrentFailStreak();
-    
+  async function handleFailedExecution(failStreak: number) {
     // Check for help video trigger at 3 failures
     if (failStreak >= 3 && $currentLessonState.currentLesson && $currentLessonState.currentStep) {
-      await videoManager.checkHelpVideo(
+      const helpVideoTriggered = await videoManager.checkHelpVideo(
         $currentLessonState.currentLesson,
         $currentLessonState.currentStep,
         failStreak
       );
+      
+      // Reset the fail streak after help video logic runs
+      if (helpVideoTriggered) {
+        codeExecution.resetFailStreak();
+      }
     }
   }
 

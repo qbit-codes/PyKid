@@ -348,8 +348,19 @@ export class VideoStorageManager {
   }
 }
 
-// Singleton instance
-export const videoStorage = new VideoStorageManager();
+// Singleton instance with proper configuration
+export const videoStorage = new VideoStorageManager({
+  baseUrl: '/videos/',
+  videoFormat: 'mp4',
+  fallbackFormats: ['webm', 'mov'],
+  cacheEnabled: true,
+  preloadStrategy: 'metadata',
+  useAdaptiveStreaming: false,
+  cdn: {
+    enabled: false,
+    provider: 'local'
+  }
+});
 
 // Video trigger utilities
 export class VideoTriggerManager {

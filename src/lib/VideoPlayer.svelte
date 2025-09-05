@@ -347,18 +347,35 @@
       on:error={(e) => handleError(new Error('Video playback error'))}
     >
       <!-- Sources and tracks are added dynamically -->
+      <!-- Default empty track for accessibility compliance -->
+      <track kind="captions" src="" srclang="tr" label="Türkçe" />
     </video>
     
     <!-- Custom Controls -->
     {#if showControls && videoMetadata}
       <div class="video-controls">
         <div class="progress-container">
-          <div class="progress-track" on:click={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickRatio = clickX / rect.width;
-            seekTo(duration * clickRatio);
-          }}>
+          <div 
+            class="progress-track" 
+            role="button"
+            tabindex="0"
+            aria-label="Video ilerleme çubuğu - tıklayarak konuma gidebilirsiniz"
+            on:click={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const clickX = e.clientX - rect.left;
+              const clickRatio = clickX / rect.width;
+              seekTo(duration * clickRatio);
+            }}
+            on:keydown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                const rect = e.currentTarget.getBoundingClientRect();
+                const centerX = rect.width / 2;
+                const clickRatio = centerX / rect.width;
+                seekTo(duration * clickRatio);
+              }
+            }}
+          >
             <div class="progress-played" style="width: {(currentTime / duration) * 100}%"></div>
             <div class="progress-buffered" style="width: {loadingProgress}%"></div>
           </div>
@@ -408,7 +425,19 @@
     
     <!-- Thumbnail overlay when paused -->
     {#if !isPlaying && videoMetadata?.thumbnail}
-      <div class="thumbnail-overlay" on:click={playVideo}>
+      <div 
+        class="thumbnail-overlay" 
+        role="button"
+        tabindex="0"
+        aria-label="Videoyu oynatmak için tıklayın"
+        on:click={playVideo}
+        on:keydown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            playVideo();
+          }
+        }}
+      >
         <img src={videoMetadata.thumbnail} alt="Video thumbnail" class="thumbnail-image" />
         <div class="play-overlay">
           <div class="play-button-large">▶️</div>

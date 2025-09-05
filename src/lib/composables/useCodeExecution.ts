@@ -67,6 +67,7 @@ export function useCodeExecution() {
     success: boolean;
     validationResult: any;
     output: string;
+    failStreak: number;
   }> {
     executionState.update(state => ({ ...state, output: '', running: true }));
 
@@ -95,6 +96,7 @@ export function useCodeExecution() {
     let errorType: string | undefined;
     let validationResult: any;
     let currentOutput = '';
+    let currentFailStreak = 0;
 
     try {
       // Step 1: Validate code with OpenAI
@@ -171,17 +173,14 @@ export function useCodeExecution() {
           const newStreak = (parseInt(localStorage.getItem(K_FAIL_STREAK) || '0', 10) || 0) + 1;
           localStorage.setItem(K_FAIL_STREAK, String(newStreak));
           executionState.update(state => ({ ...state, failStreak: newStreak }));
+          currentFailStreak = newStreak;
           
           // Video trigger manager with failed attempt count
           if (currentLesson && currentStep) {
             VideoTriggerManager.incrementFailedAttempts(currentLesson.id, currentStep.id);
           }
 
-          // Reset streak after triggering help video
-          if (newStreak >= 3) {
-            localStorage.setItem(K_FAIL_STREAK, '0');
-            executionState.update(state => ({ ...state, failStreak: 0 }));
-          }
+          // DON'T reset streak here - let the caller handle help video logic first
         }
       }
     }
@@ -189,7 +188,8 @@ export function useCodeExecution() {
     return {
       success: executionSuccess && (validationResult?.isValid || validationResult?.confidence > 0.7),
       validationResult,
-      output: currentOutput
+      output: currentOutput,
+      failStreak: currentFailStreak
     };
   }
 
@@ -213,6 +213,12 @@ export function useCodeExecution() {
     return parseInt(localStorage.getItem(K_FAIL_STREAK) || '0', 10) || 0;
   }
 
+  // Reset fail streak (called after help video logic)
+  function resetFailStreak() {
+    localStorage.setItem(K_FAIL_STREAK, '0');
+    executionState.update(state => ({ ...state, failStreak: 0 }));
+  }
+
   return {
     // Store
     executionState,
@@ -224,6 +230,7 @@ export function useCodeExecution() {
 
     // Helper functions
     handleHelpRequest,
-    getCurrentFailStreak
+    getCurrentFailStreak,
+    resetFailStreak
   };
 }

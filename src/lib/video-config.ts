@@ -78,8 +78,8 @@ export const PRELOAD_CONFIG = {
   cacheExpiration: 30 * 60 * 1000 // 30 minutes
 };
 
-// Export configured video storage manager
-export const videoStorage = new VideoStorageManager(
+// Export configured video storage manager for server-side use
+export const configuredVideoStorage = new VideoStorageManager(
   dev ? devVideoConfig : videoConfig
 );
 
@@ -233,7 +233,7 @@ if (dev) {
     
     testVideoLoad: async (videoId: string) => {
       const video = document.createElement('video');
-      const url = videoStorage.getVideoUrl(videoId);
+      const url = configuredVideoStorage.getVideoUrl(videoId);
       
       return new Promise((resolve, reject) => {
         video.onloadeddata = () => resolve(url);
