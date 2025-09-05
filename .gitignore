@@ -32,3 +32,7 @@ static/videos/example.tr.vtt
 *.db
 *.db-shm
 *.db-wal
+
+*.sh
+*.conf
+ecosystem.config.cjs
