@@ -2,13 +2,14 @@
 // Video configuration for PyKid with Bunny.net CDN support
 
 import { VideoStorageManager, type VideoStorageConfig } from './video-storage';
-import { env } from '$env/dynamic/private';
 import { dev } from '$app/environment';
+import { browser } from '$app/environment';
 
-// Bunny.net configuration from environment
-const BUNNY_PULL_ZONE = env.BUNNY_PULL_ZONE || 'pykid-videos';
-const BUNNY_API_KEY = env.BUNNY_API_KEY;
-const BUNNY_BASE_URL = env.BUNNY_BASE_URL;
+// For browser-side video configuration, we only need public settings
+// CDN configuration is handled server-side or via public env vars
+const BUNNY_PULL_ZONE = browser ? '' : 'pykid-videos'; // Only used server-side
+const BUNNY_API_KEY = ''; // API key not needed on client side
+const BUNNY_BASE_URL = browser ? '' : ''; // Only used server-side
 
 // Video storage configuration based on environment
 const videoConfig: VideoStorageConfig = {
@@ -20,11 +21,8 @@ const videoConfig: VideoStorageConfig = {
   useAdaptiveStreaming: !dev, // Only use adaptive streaming in production
   
   cdn: {
-    enabled: !dev && !!BUNNY_PULL_ZONE, // Only use CDN in production
-    provider: 'bunny',
-    pullZone: BUNNY_PULL_ZONE,
-    apiKey: BUNNY_API_KEY,
-    baseUrl: BUNNY_BASE_URL
+    enabled: false, // Disable CDN for client-side config, handle via server
+    provider: 'local'
   }
 };
 
@@ -143,9 +141,9 @@ export const VIDEO_ERROR_CONFIG = {
 
 // Video loading optimization
 export const VIDEO_LOADING_CONFIG = {
-  // Preconnect to bunny.net for faster loading
-  preconnectUrls: [
-    `https://${BUNNY_PULL_ZONE}.b-cdn.net`,
+  // Preconnect URLs for faster loading (empty in browser, handled server-side)
+  preconnectUrls: browser ? [] : [
+    'https://pykid-videos.b-cdn.net',
     'https://b-cdn.net'
   ],
   

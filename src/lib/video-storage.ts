@@ -285,18 +285,27 @@ export class VideoStorageManager {
    * Generate fallback metadata based on naming conventions
    */
   private generateFallbackMetadata(lessonId: string, stepId?: string, type?: VideoMetadata['type']): VideoMetadata | null {
-    // Check if video file exists using conventional naming
-    const videoId = stepId ? `${lessonId}_${stepId}` : lessonId;
-    const typePrefix = type ? `${type}_` : '';
-    const fullVideoId = `${typePrefix}${videoId}`;
+    let videoId: string;
+    
+    // Help and congratulations videos are the same for all lessons/steps
+    if (type === 'help') {
+      videoId = 'help'; // Use generic help.mp4
+    } else if (type === 'congratulations') {
+      videoId = 'congratulations'; // Use generic congratulations.mp4
+    } else {
+      // Intro and other videos are lesson-specific
+      videoId = stepId ? `intro_${lessonId}_${stepId}` : `intro_${lessonId}`;
+    }
 
     return {
-      id: fullVideoId,
+      id: videoId,
       lessonId,
       stepId,
       type: type || 'explanation',
-      title: `${lessonId} ${stepId ? `- ${stepId}` : ''} Video`,
-      description: `Video for ${lessonId}${stepId ? ` step ${stepId}` : ''}`,
+      title: `${type === 'help' ? 'Yardım' : type === 'congratulations' ? 'Tebrikler' : lessonId} Video`,
+      description: type === 'help' ? 'Yardım videosu' : 
+                  type === 'congratulations' ? 'Tebrikler videosu' :
+                  `Video for ${lessonId}${stepId ? ` step ${stepId}` : ''}`,
       triggers: {
         lessonStart: type === 'intro',
         failedAttempts: type === 'help' ? 3 : undefined,
