@@ -352,6 +352,11 @@ export class VideoStorageManager {
   }
 }
 
+// Get environment variables for CDN configuration
+const BUNNY_PULL_ZONE = import.meta.env?.VITE_BUNNY_PULL_ZONE || process.env?.BUNNY_PULL_ZONE || 'vz-3b8bb5b9-d38';
+const BUNNY_API_KEY = import.meta.env?.VITE_BUNNY_API_KEY || process.env?.BUNNY_API_KEY;
+const NODE_ENV = import.meta.env?.MODE || process.env?.NODE_ENV || 'development';
+
 // Singleton instance with Bunny.net CDN configuration
 export const videoStorage = new VideoStorageManager({
   baseUrl: '/videos/',
@@ -359,17 +364,18 @@ export const videoStorage = new VideoStorageManager({
   fallbackFormats: ['webm', 'mov'],
   cacheEnabled: true,
   preloadStrategy: 'metadata',
-  useAdaptiveStreaming: true,
+  useAdaptiveStreaming: NODE_ENV === 'production' && !!BUNNY_API_KEY,
   cdn: {
-    enabled: true,
+    enabled: NODE_ENV === 'production' && !!BUNNY_API_KEY,
     provider: 'bunny',
-    pullZone: 'vz-3b8bb5b9-d38'
+    pullZone: BUNNY_PULL_ZONE,
+    apiKey: BUNNY_API_KEY
   },
   // Map expected video IDs to your actual Bunny.net filenames
   videoMapping: {
-    // Example mappings - replace with your actual filenames
+    // Map video IDs to actual Bunny.net file IDs when CDN is enabled
     'intro_lesson-1': '25c2d2dc-2bae-4c42-adcc-b40bb5491717',
-    'help_lesson-1': 'ddaf0f45-100e-42b1-8421-82d34705f615',
+    'help_lesson-1': 'ddaf0f45-100e-42b1-8421-82d34705f615',  
     'explanation_lesson-1_step-1-1': '25c2d2dc-2bae-4c42-adcc-b40bb5491717',
     'congratulations_lesson-1': 'ee53b622-56cb-4941-88cd-8ceed1ff7a23',
     // Add more mappings as needed
