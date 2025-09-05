@@ -11,7 +11,7 @@
   import type { Lesson, LessonStep } from '$lib/lessons';
   import { LESSONS } from '$lib/lessons';
   import { attemptTracker } from '$lib/attempt-tracker';
-  import { videoStorage, VideoTriggerManager } from '$lib/video-storage';
+  import { videoStorage, VideoTriggerManager, type VideoMetadata } from '$lib/video-storage';
   import ProgressDashboard from '$lib/ProgressDashboard.svelte';
   import { 
     getLessonById, 
@@ -698,6 +698,9 @@ function onReplay(ev: Event) {
           // Reset video triggers on successful completion
           if (currentLesson && currentStep) {
             resetVideoTriggers(currentLesson, currentStep);
+            
+            // Show congratulations video for successful step completion
+            showCongratulationsVideo(currentLesson, currentStep, false);
           }
           
           fireReplay(); 
@@ -789,6 +792,9 @@ function onReplay(ev: Event) {
           } else {
             // Mark lesson as completed and move to next lesson
             markLessonCompleted(lesson.id);
+            
+            // Show congratulations video for lesson completion
+            showCongratulationsVideo(lesson, undefined, true);
             
             const nextLesson = getNextLesson(lesson.id);
             if (nextLesson) {
@@ -1248,6 +1254,54 @@ async function checkHelpVideo(lesson: Lesson, step: LessonStep, failedAttempts: 
     }
   } catch (error) {
     console.error('Error loading help video:', error);
+  }
+}
+
+// Show congratulations video after successful step/lesson completion
+async function showCongratulationsVideo(lesson: Lesson, step?: LessonStep, isLessonComplete: boolean = false) {
+  if (!lesson) return;
+  
+  try {
+    // Determine video type based on completion type
+    const videoType: VideoMetadata['type'] = 'congratulations';
+    const videoMetadata = await videoStorage.getVideoForLesson(
+      lesson.id, 
+      isLessonComplete ? undefined : step?.id, 
+      videoType
+    );
+    
+    if (videoMetadata && videoStorage.shouldTriggerVideo(videoMetadata, { 
+      isStepComplete: !isLessonComplete && !!step,
+      isLessonComplete: isLessonComplete
+    })) {
+      
+      // Add congratulations message to output
+      if (isLessonComplete) {
+        output += `\n🎉 Tebrikler! "${lesson.title}" dersini tamamladın! 🎊\n`;
+        output += `\n🌟 Harika bir iş çıkardın! Kutlama videosu oynatılıyor...\n\n`;
+      } else if (step) {
+        output += `\n✨ Aferin! "${step.title}" adımını başarıyla tamamladın! 👏\n`;
+        output += `\n🎯 Kutlama videosu oynatılıyor...\n\n`;
+      }
+      
+      // Update main video player to show congratulations video
+      if (videoEl) {
+        const videoUrl = videoStorage.getVideoUrl(videoMetadata.id);
+        videoEl.src = videoUrl;
+        
+        // Play congratulations video with a short delay for better UX
+        setTimeout(async () => {
+          try {
+            await videoEl.play();
+            handleVideoPlay(); // Track video interaction
+          } catch (error) {
+            console.log('Auto-play prevented, user interaction required');
+          }
+        }, 1000); // 1 second delay
+      }
+    }
+  } catch (error) {
+    console.error('Error loading congratulations video:', error);
   }
 }
 

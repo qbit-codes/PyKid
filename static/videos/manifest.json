@@ -152,5 +152,72 @@
       "failedAttempts": 3,
       "manualOnly": false
     }
+  },
+  {
+    "id": "congratulations_lesson-1",
+    "lessonId": "lesson-1",
+    "type": "congratulations",
+    "title": "Tebrikler - Lesson 1 Tamamlandı!",
+    "description": "Python temel kavramlarını başarıyla öğrendin! Kutlama zamanı!",
+    "duration": 30,
+    "thumbnail": "/videos/thumbnails/lesson-1-congratulations.jpg",
+    "triggers": {
+      "lessonComplete": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-1_step-1-1",
+    "lessonId": "lesson-1",
+    "stepId": "step-1-1",
+    "type": "congratulations",
+    "title": "Aferin - İlk Adımı Tamamladın!",
+    "description": "İlk Python programını yazdın! Harika başlangıç!",
+    "duration": 15,
+    "thumbnail": "/videos/thumbnails/lesson-1-step-1-1-congratulations.jpg",
+    "triggers": {
+      "stepComplete": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-2",
+    "lessonId": "lesson-2",
+    "type": "congratulations",
+    "title": "Tebrikler - Lesson 2 Tamamlandı!",
+    "description": "Karar verme ve döngüleri öğrendin! Artık daha güçlü programlar yazabilirsin!",
+    "duration": 35,
+    "thumbnail": "/videos/thumbnails/lesson-2-congratulations.jpg",
+    "triggers": {
+      "lessonComplete": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-2_step-2-1",
+    "lessonId": "lesson-2",
+    "stepId": "step-2-1",
+    "type": "congratulations",
+    "title": "Harika - If/Else Öğrendin!",
+    "description": "Artık programların karar vermesini sağlayabiliyorsun!",
+    "duration": 20,
+    "thumbnail": "/videos/thumbnails/lesson-2-step-2-1-congratulations.jpg",
+    "triggers": {
+      "stepComplete": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-3",
+    "lessonId": "lesson-3",
+    "type": "congratulations",
+    "title": "Tebrikler - Lesson 3 Tamamlandı!",
+    "description": "Fonksiyonlar ve listeler artık senin kontrolünde! Müthiş ilerleme!",
+    "duration": 40,
+    "thumbnail": "/videos/thumbnails/lesson-3-congratulations.jpg",
+    "triggers": {
+      "lessonComplete": true,
+      "manualOnly": false
+    }
   }
 ]

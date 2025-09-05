@@ -70,8 +70,8 @@ export const PRELOAD_CONFIG = {
   // Preload videos for next 2 lessons
   lessonsAhead: 2,
   
-  // Only preload intro and help videos by default
-  types: ['intro', 'help'] as const,
+  // Only preload intro, help, and congratulations videos by default
+  types: ['intro', 'help', 'congratulations'] as const,
   
   // Maximum cache size (number of videos)
   maxCacheSize: 10,

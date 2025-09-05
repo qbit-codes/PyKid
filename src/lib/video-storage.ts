@@ -5,7 +5,7 @@ export interface VideoMetadata {
   id: string;
   lessonId: string;
   stepId?: string;
-  type: 'intro' | 'help' | 'explanation' | 'exercise_demo';
+  type: 'intro' | 'help' | 'explanation' | 'exercise_demo' | 'congratulations';
   title: string;
   description: string;
   duration?: number; // seconds
@@ -17,6 +17,8 @@ export interface VideoMetadata {
   triggers: {
     lessonStart?: boolean;
     failedAttempts?: number;
+    stepComplete?: boolean;
+    lessonComplete?: boolean;
     manualOnly?: boolean;
   };
 }
@@ -158,10 +160,12 @@ export class VideoStorageManager {
   shouldTriggerVideo(metadata: VideoMetadata, context: {
     isLessonStart?: boolean;
     failedAttemptCount?: number;
+    isStepComplete?: boolean;
+    isLessonComplete?: boolean;
     manualRequest?: boolean;
   }): boolean {
     const { triggers } = metadata;
-    const { isLessonStart, failedAttemptCount, manualRequest } = context;
+    const { isLessonStart, failedAttemptCount, isStepComplete, isLessonComplete, manualRequest } = context;
 
     // Manual requests always allowed unless explicitly disabled
     if (manualRequest && !triggers.manualOnly) {
@@ -176,6 +180,16 @@ export class VideoStorageManager {
     // Check failed attempts trigger
     if (failedAttemptCount && triggers.failedAttempts && 
         failedAttemptCount >= triggers.failedAttempts) {
+      return true;
+    }
+
+    // Check step completion trigger
+    if (isStepComplete && triggers.stepComplete) {
+      return true;
+    }
+
+    // Check lesson completion trigger
+    if (isLessonComplete && triggers.lessonComplete) {
       return true;
     }
 
@@ -286,6 +300,8 @@ export class VideoStorageManager {
       triggers: {
         lessonStart: type === 'intro',
         failedAttempts: type === 'help' ? 3 : undefined,
+        stepComplete: type === 'congratulations' && !!stepId,
+        lessonComplete: type === 'congratulations' && !stepId,
         manualOnly: false
       }
     };
