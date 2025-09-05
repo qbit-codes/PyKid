@@ -407,6 +407,7 @@ print("Python öğrenmeye hazır mısın?")
             videoType={$currentVideoState.currentVideoType}
             autoplay={true}
             autoUnmute={true}
+            requireUserInteraction={$currentVideoState.currentVideoType === 'explanation'}
             showControls={true}
             className="w-full h-full rounded-[0.5rem]"
             on:play={handleVideoPlay}

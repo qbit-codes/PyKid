@@ -20,6 +20,7 @@
   export let autoUnmute = false; // New option to unmute after autoplay starts
   export let showControls = true;
   export let className = '';
+  export let requireUserInteraction = false; // Force user interaction before playing
   
   let videoElement: HTMLVideoElement;
   let videoMetadata: VideoMetadata | null = null;
@@ -33,6 +34,7 @@
   let isMuted = false;
   let watchStartTime = 0;
   let totalWatchTime = 0;
+  let userHasInteracted = false;
   
   // Loading and error states
   let retryCount = 0;
@@ -161,12 +163,12 @@
       });
     }
     
-    // Autoplay if enabled and supported
-    if (autoplay && VIDEO_PLAYER_CONFIG.autoplay.enabled) {
+    // Autoplay if enabled and supported, but respect user interaction requirement
+    if (autoplay && VIDEO_PLAYER_CONFIG.autoplay.enabled && !requireUserInteraction) {
       console.log('🚀 Auto-playing video');
       playVideo();
     } else {
-      console.log('⏸️ Not auto-playing - autoplay:', autoplay, 'config enabled:', VIDEO_PLAYER_CONFIG.autoplay.enabled);
+      console.log('⏸️ Not auto-playing - autoplay:', autoplay, 'config enabled:', VIDEO_PLAYER_CONFIG.autoplay.enabled, 'requireUserInteraction:', requireUserInteraction);
     }
   }
   
@@ -255,8 +257,16 @@
     if (isPlaying) {
       pauseVideo();
     } else {
+      if (requireUserInteraction && !userHasInteracted) {
+        userHasInteracted = true;
+      }
       playVideo();
     }
+  }
+  
+  function handleUserPlay() {
+    userHasInteracted = true;
+    playVideo();
   }
   
   function onEnded() {
@@ -371,6 +381,20 @@
     <track kind="captions" src="" srclang="tr" label="Türkçe" />
   </video>
     
+  <!-- Play button overlay for user interaction requirement -->
+  {#if requireUserInteraction && !userHasInteracted && !isLoading && !hasError}
+    <div class="play-overlay">
+      <button 
+        class="play-button" 
+        on:click={handleUserPlay}
+        aria-label="Videoyu oynat"
+      >
+        <div class="play-icon">▶️</div>
+        <div class="play-text">Açıklama Videosunu İzle</div>
+      </button>
+    </div>
+  {/if}
+
   <!-- Auto-unmute button when video is muted due to autoplay -->
   {#if isPlaying && isMuted && autoplay && !autoUnmute}
     <div class="auto-unmute-overlay">
@@ -497,6 +521,53 @@
   }
   
   
+  /* Play overlay for user interaction */
+  .play-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 30;
+  }
+  
+  .play-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    border: none;
+    padding: 2rem 3rem;
+    border-radius: 1rem;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  
+  .play-button:hover {
+    background: white;
+    transform: scale(1.05);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  }
+  
+  .play-icon {
+    font-size: 3rem;
+    line-height: 1;
+  }
+  
+  .play-text {
+    font-size: 1.1rem;
+    text-align: center;
+  }
+
   /* Auto-unmute overlay */
   .auto-unmute-overlay {
     position: absolute;
