@@ -113,6 +113,16 @@
     }
   }
 
+  // Chat container reference for auto-scrolling
+  let messagesContainer: HTMLElement;
+
+  // Auto-scroll to bottom when messages change
+  $: if (messagesContainer && history.length > 0) {
+    setTimeout(() => {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }, 0);
+  }
+
   // Initialize conversation when component mounts
   import { onMount } from 'svelte';
   onMount(() => {
@@ -260,7 +270,7 @@
 
 <div class="chat">
 
-  <div class="msgs">
+  <div class="msgs" bind:this={messagesContainer}>
     {#each history as m}
       <div class="bubble {m.role}">{m.content}</div>
     {/each}
