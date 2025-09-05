@@ -309,18 +309,7 @@
 </script>
 
 <div class="video-player {className}">
-  {#if isLoading && videoMetadata?.thumbnail}
-    <div class="thumbnail-loading-state">
-      <img src={videoMetadata.thumbnail} alt="Video thumbnail" class="loading-thumbnail" />
-      <div class="loading-overlay">
-        {#if loadingProgress > 0}
-          <div class="loading-progress">
-            <div class="progress-bar" style="width: {loadingProgress}%"></div>
-          </div>
-        {/if}
-      </div>
-    </div>
-  {:else if isLoading}
+  {#if isLoading}
     <div class="loading-state">
       <div class="loading-spinner"></div>
       <div class="loading-text">Video yükleniyor...</div>
@@ -434,27 +423,6 @@
       </div>
     {/if}
     
-    <!-- Thumbnail overlay when paused -->
-    {#if !isPlaying && videoMetadata?.thumbnail}
-      <div 
-        class="thumbnail-overlay" 
-        role="button"
-        tabindex="0"
-        aria-label="Videoyu oynatmak için tıklayın"
-        on:click={playVideo}
-        on:keydown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            playVideo();
-          }
-        }}
-      >
-        <img src={videoMetadata.thumbnail} alt="Video thumbnail" class="thumbnail-image" />
-        <div class="play-overlay">
-          <div class="play-button-large">▶️</div>
-        </div>
-      </div>
-    {/if}
   {/if}
 </div>
 
@@ -487,48 +455,6 @@
     gap: 1rem;
   }
 
-  .thumbnail-loading-state {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .loading-thumbnail {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: brightness(0.7) blur(1px);
-  }
-
-  .loading-overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.3);
-    backdrop-filter: blur(2px);
-  }
-
-  .thumbnail-loading-state .loading-progress {
-    width: 80%;
-    max-width: 300px;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.3);
-    border-radius: 3px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .thumbnail-loading-state .progress-bar {
-    height: 100%;
-    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-    transition: width 0.3s ease;
-    border-radius: 3px;
-  }
   
   .loading-spinner {
     width: 40px;
@@ -704,43 +630,11 @@
     text-align: right;
     font-size: 0.875rem;
     opacity: 0.8;
-    truncate: true;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   
-  /* Thumbnail Overlay */
-  .thumbnail-overlay {
-    position: absolute;
-    inset: 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .thumbnail-image {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  .play-overlay {
-    z-index: 1;
-    background: rgba(0, 0, 0, 0.5);
-    border-radius: 50%;
-    padding: 1rem;
-    transition: background 0.2s ease;
-  }
-  
-  .play-overlay:hover {
-    background: rgba(0, 0, 0, 0.7);
-  }
-  
-  .play-button-large {
-    font-size: 2rem;
-    color: white;
-  }
   
   /* Responsive adjustments */
   @media (max-width: 768px) {

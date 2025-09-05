@@ -9,7 +9,7 @@
   let isResending = false;
   let error = '';
   let resendCooldown = 0;
-  let cooldownInterval: number;
+  let cooldownInterval: ReturnType<typeof setInterval>;
 
   // Get phone number from URL params or localStorage
   $: phoneNumber = $page.url.searchParams.get('phone') || localStorage.getItem('pendingPhone') || '';

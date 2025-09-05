@@ -24,19 +24,23 @@ export function useVideoManager() {
   });
 
   // Video trigger functions
-  async function checkLessonStartVideo(lesson: Lesson) {
-    if (!lesson) return;
+  async function checkLessonStartVideo(lesson: Lesson, step: LessonStep) {
+    console.log(`Lesson ID: ${lesson.id}`)
+    console.log(`Step ID: ${step.id}`)
+    if (!lesson && !step) return;
     
     // Check if lesson start video has already been shown
-    if (VideoTriggerManager.hasShownLessonStartVideo(lesson.id)) {
-      return;
-    }
+    //if (VideoTriggerManager.hasShownLessonStartVideo(lesson.id)) {
+    //  return;
+    //}
     
     try {
       // Get intro video for this lesson
-      const videoMetadata = await videoStorage.getVideoForLesson(lesson.id, undefined, 'intro');
+      const videoMetadata = await videoStorage.getVideoForLesson(lesson.id, step.id, 'explanation');
+      console.log(`video metadata: ${videoMetadata?.type} ${videoMetadata?.id}`)
       
       if (videoMetadata && videoStorage.shouldTriggerVideo(videoMetadata, { isLessonStart: true })) {
+        console.log('video triggered')
         // Mark as shown to prevent duplicate triggers
         VideoTriggerManager.markLessonStartVideoShown(lesson.id);
         
@@ -44,10 +48,10 @@ export function useVideoManager() {
         videoState.update(state => ({
           ...state,
           currentVideoLessonId: lesson.id,
-          currentVideoStepId: undefined,
-          currentVideoType: 'intro'
+          currentVideoStepId: step.id,
+          currentVideoType: 'explanation'
         }));
-        
+        console.log(videoState) 
         return true; // Video was triggered
       }
     } catch (error) {
@@ -153,24 +157,24 @@ export function useVideoManager() {
   }
 
   function handleVideoEnded(event: CustomEvent<{ videoId: string; metadata: VideoMetadata }>) {
-    videoState.update(state => ({
-      ...state,
-      isPlaying: false
-    }));
-
-    // Handle pending auto progression for congratulations videos
-    const { pendingAutoProgression } = videoState;
-    if (pendingAutoProgression && event.detail.metadata.type === 'congratulations') {
-      videoState.update(state => ({
-        ...state,
-        pendingAutoProgression: false
-      }));
-      
-      // Return indication that auto progression should happen
-      return true;
-    }
+    let shouldAutoProgress = false;
     
-    return false;
+    videoState.update(state => {
+      const updated = {
+        ...state,
+        isPlaying: false
+      };
+      
+      // Handle pending auto progression for congratulations videos
+      if (state.pendingAutoProgression && event.detail.metadata.type === 'congratulations') {
+        updated.pendingAutoProgression = false;
+        shouldAutoProgress = true;
+      }
+      
+      return updated;
+    });
+
+    return shouldAutoProgress;
   }
 
   // Set pending auto progression flag

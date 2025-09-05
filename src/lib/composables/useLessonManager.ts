@@ -1,7 +1,7 @@
 // src/lib/composables/useLessonManager.ts
 // Lesson management composable for PyKid
 
-import { writable, type Writable } from 'svelte/store';
+import { writable, get, type Writable } from 'svelte/store';
 import type { Lesson, LessonStep } from '$lib/lessons';
 import { LESSONS } from '$lib/lessons';
 import { 
@@ -183,13 +183,9 @@ export function useLessonManager() {
     isComplete?: boolean;
     message: string;
   }> {
-    let currentLesson: Lesson | null = null;
-    let currentStep: LessonStep | null = null;
-    
-    lessonState.subscribe(state => {
-      currentLesson = state.currentLesson;
-      currentStep = state.currentStep;
-    })();
+    const state = get(lessonState);
+    const currentLesson = state.currentLesson;
+    const currentStep = state.currentStep;
     
     if (!currentLesson || !currentStep) {
       return { message: 'Lesson veya step bilgisi bulunamadı' };
@@ -267,13 +263,9 @@ export function useLessonManager() {
 
   // Get current lesson context for Ada Teacher
   function getCurrentLessonContext(): string {
-    let currentLesson: Lesson | null = null;
-    let currentStep: LessonStep | null = null;
-    
-    lessonState.subscribe(state => {
-      currentLesson = state.currentLesson;
-      currentStep = state.currentStep;
-    })();
+    const state = get(lessonState);
+    const currentLesson = state.currentLesson;
+    const currentStep = state.currentStep;
     
     if (!currentLesson || !currentStep) return '';
     

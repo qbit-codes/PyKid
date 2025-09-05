@@ -192,9 +192,9 @@ print("Python öğrenmeye hazır mısın?")
   function handleLessonSelect(event: CustomEvent) {
     lessonManager.handleLessonSelect(event);
     // Check for lesson start video
-    if ($currentLessonState.currentLesson) {
-      videoManager.checkLessonStartVideo($currentLessonState.currentLesson);
-    }
+    //if ($currentLessonState.currentLesson) {
+      //videoManager.checkLessonStartVideo($currentLessonState.currentLesson);
+    //}
   }
 
   function handleStepSelect(event: CustomEvent) {
@@ -251,6 +251,11 @@ print("Python öğrenmeye hazır mısın?")
     // Auto-select lesson and step
     lessonManager.autoSelectLessonAndStep();
     
+    console.log($currentLessonState.currentLesson)
+    console.log($currentLessonState.currentStep)
+    if ($currentLessonState.currentLesson && $currentLessonState.currentStep) {
+      videoManager.checkLessonStartVideo($currentLessonState.currentLesson, $currentLessonState.currentStep);
+    }
     // Delay lesson change update to ensure chat component is ready
     setTimeout(() => {
       if (chatPanelComponent?.updateForLessonChange) {
@@ -563,9 +568,12 @@ print("Python öğrenmeye hazır mısın?")
   </div>
 
   <!-- Progress Dashboard Modal -->
-  {#if currentLessonState.showProgressDashboard}
+  {#if $currentLessonState.showProgressDashboard}
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
-         on:click={lessonManager.closeProgressDashboard}>
+         role="button"
+         tabindex="0"
+         on:click={lessonManager.closeProgressDashboard}
+         on:keydown={(e) => e.key === 'Escape' && lessonManager.closeProgressDashboard()}>
       <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] m-4" on:click|stopPropagation>
         <div class="flex items-center justify-between p-4 border-b border-gray-200">
           <h2 class="text-xl font-bold text-gray-800">📊 İlerleme Panosu</h2>
@@ -585,9 +593,12 @@ print("Python öğrenmeye hazır mısın?")
   {/if}
 
   <!-- Lesson Selector Modal -->
-  {#if currentLessonState.showLessonSelector}
+  {#if $currentLessonState.showLessonSelector}
     <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" 
-         on:click={lessonManager.closeLessonSelector}>
+         role="button" 
+         tabindex="0"
+         on:click={lessonManager.closeLessonSelector}
+         on:keydown={(e) => e.key === 'Escape' && lessonManager.closeLessonSelector()}>
       <div class="bg-white rounded-lg p-6 max-w-2xl max-h-[80vh] overflow-auto" on:click|stopPropagation>
         <div class="flex items-center justify-between mb-4">
           <h2 class="text-xl font-bold text-gray-800">📚 Ders Seçin</h2>

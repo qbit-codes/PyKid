@@ -38,6 +38,7 @@ export interface VideoStorageConfig {
     pullZone?: string;
     apiKey?: string;
   };
+  videoMapping?: { [key: string]: string }; // Map expected names to actual filenames
 }
 
 export class VideoStorageManager {
@@ -96,20 +97,23 @@ export class VideoStorageManager {
   getVideoUrl(videoId: string, format?: string): string {
     const ext = format || this.config.videoFormat;
     
+    // Apply video mapping if available
+    const actualVideoId = this.config.videoMapping?.[videoId] || videoId;
+    
     // Use CDN if enabled
     if (this.config.cdn.enabled) {
       if (this.config.cdn.provider === 'bunny') {
-        return this.getBunnyVideoUrl(videoId, ext);
+        return this.getBunnyVideoUrl(actualVideoId, ext);
       }
       
       // Generic CDN URL
       if (this.config.cdn.baseUrl) {
-        return `${this.config.cdn.baseUrl}/${videoId}.${ext}`;
+        return `${this.config.cdn.baseUrl}/${actualVideoId}.${ext}`;
       }
     }
     
     // Fallback to local URL
-    return `${this.config.baseUrl}${videoId}.${ext}`;
+    return `${this.config.baseUrl}${actualVideoId}.${ext}`;
   }
 
   /**
@@ -348,17 +352,27 @@ export class VideoStorageManager {
   }
 }
 
-// Singleton instance with proper configuration
+// Singleton instance with Bunny.net CDN configuration
 export const videoStorage = new VideoStorageManager({
   baseUrl: '/videos/',
   videoFormat: 'mp4',
   fallbackFormats: ['webm', 'mov'],
   cacheEnabled: true,
   preloadStrategy: 'metadata',
-  useAdaptiveStreaming: false,
+  useAdaptiveStreaming: true,
   cdn: {
-    enabled: false,
-    provider: 'local'
+    enabled: true,
+    provider: 'bunny',
+    pullZone: 'vz-3b8bb5b9-d38'
+  },
+  // Map expected video IDs to your actual Bunny.net filenames
+  videoMapping: {
+    // Example mappings - replace with your actual filenames
+    'intro_lesson-1': '25c2d2dc-2bae-4c42-adcc-b40bb5491717',
+    'help_lesson-1': 'ddaf0f45-100e-42b1-8421-82d34705f615',
+    'explanation_lesson-1_step-1-1': '25c2d2dc-2bae-4c42-adcc-b40bb5491717',
+    'congratulations_lesson-1': 'ee53b622-56cb-4941-88cd-8ceed1ff7a23',
+    // Add more mappings as needed
   }
 });
 

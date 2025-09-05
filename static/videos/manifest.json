@@ -6,7 +6,6 @@
     "title": "Python Temel Kavramları - Giriş",
     "description": "Python dünyasına hoş geldiniz! Bu videoda değişkenler, print komutu ve temel kavramları öğreneceksiniz.",
     "duration": 180,
-    "thumbnail": "/videos/thumbnails/lesson-1-intro.jpg",
     "subtitles": [
       {
         "language": "tr",
@@ -25,7 +24,6 @@
     "title": "Python Temel Kavramları - Yardım",
     "description": "Python temel kavramlarında zorlanıyor musunuz? Bu yardım videosunda örneklerle açıklayalım.",
     "duration": 120,
-    "thumbnail": "/videos/thumbnails/lesson-1-help.jpg",
     "subtitles": [
       {
         "language": "tr",
@@ -45,8 +43,8 @@
     "title": "İlk Python Programın",
     "description": "Print komutu ile nasıl ekrana yazı yazdırırız, örneklerle öğrenelim.",
     "duration": 90,
-    "thumbnail": "/videos/thumbnails/lesson-1-step-1-1.jpg",
     "triggers": {
+      "lessonStart": true,
       "manualOnly": false
     }
   },
@@ -58,7 +56,6 @@
     "title": "Değişkenler Nasıl Çalışır",
     "description": "Python'da değişken oluşturma, veri türleri ve değişken kullanımı.",
     "duration": 150,
-    "thumbnail": "/videos/thumbnails/lesson-1-step-1-2.jpg",
     "triggers": {
       "manualOnly": false
     }
@@ -70,7 +67,6 @@
     "title": "Karar Verme ve Döngüler - Giriş",
     "description": "Programların karar vermesini ve tekrar etmesini öğrenelim!",
     "duration": 200,
-    "thumbnail": "/videos/thumbnails/lesson-2-intro.jpg",
     "subtitles": [
       {
         "language": "tr",
@@ -89,7 +85,6 @@
     "title": "Karar Verme ve Döngüler - Yardım",
     "description": "If/else ve döngülerde zorlanıyorsanız bu video size yardımcı olacak.",
     "duration": 160,
-    "thumbnail": "/videos/thumbnails/lesson-2-help.jpg",
     "triggers": {
       "failedAttempts": 3,
       "manualOnly": false
@@ -103,7 +98,6 @@
     "title": "If/Else Karar Yapıları",
     "description": "Python'da koşullu ifadeler nasıl yazılır, örneklerle görelim.",
     "duration": 130,
-    "thumbnail": "/videos/thumbnails/lesson-2-step-2-1.jpg",
     "triggers": {
       "manualOnly": false
     }
@@ -116,7 +110,6 @@
     "title": "For Döngüleri",
     "description": "Aynı işi tekrar tekrar yapmak için for döngülerini kullanmayı öğrenelim.",
     "duration": 140,
-    "thumbnail": "/videos/thumbnails/lesson-2-step-2-3.jpg",
     "triggers": {
       "manualOnly": false
     }
@@ -128,7 +121,6 @@
     "title": "Fonksiyonlar ve Listeler - Giriş",
     "description": "Kodu organize etmek ve veri koleksiyonlarını yönetmek için fonksiyon ve listeleri öğrenelim.",
     "duration": 220,
-    "thumbnail": "/videos/thumbnails/lesson-3-intro.jpg",
     "subtitles": [
       {
         "language": "tr",
@@ -147,7 +139,6 @@
     "title": "Fonksiyonlar ve Listeler - Yardım",
     "description": "Fonksiyon ve liste kavramları karmaşık geliyorsa bu video ile netleştir.",
     "duration": 180,
-    "thumbnail": "/videos/thumbnails/lesson-3-help.jpg",
     "triggers": {
       "failedAttempts": 3,
       "manualOnly": false
@@ -160,7 +151,6 @@
     "title": "Tebrikler - Lesson 1 Tamamlandı!",
     "description": "Python temel kavramlarını başarıyla öğrendin! Kutlama zamanı!",
     "duration": 30,
-    "thumbnail": "/videos/thumbnails/lesson-1-congratulations.jpg",
     "triggers": {
       "lessonComplete": true,
       "manualOnly": false
@@ -174,7 +164,6 @@
     "title": "Aferin - İlk Adımı Tamamladın!",
     "description": "İlk Python programını yazdın! Harika başlangıç!",
     "duration": 15,
-    "thumbnail": "/videos/thumbnails/lesson-1-step-1-1-congratulations.jpg",
     "triggers": {
       "stepComplete": true,
       "manualOnly": false
@@ -187,7 +176,6 @@
     "title": "Tebrikler - Lesson 2 Tamamlandı!",
     "description": "Karar verme ve döngüleri öğrendin! Artık daha güçlü programlar yazabilirsin!",
     "duration": 35,
-    "thumbnail": "/videos/thumbnails/lesson-2-congratulations.jpg",
     "triggers": {
       "lessonComplete": true,
       "manualOnly": false
@@ -201,7 +189,6 @@
     "title": "Harika - If/Else Öğrendin!",
     "description": "Artık programların karar vermesini sağlayabiliyorsun!",
     "duration": 20,
-    "thumbnail": "/videos/thumbnails/lesson-2-step-2-1-congratulations.jpg",
     "triggers": {
       "stepComplete": true,
       "manualOnly": false
@@ -214,7 +201,6 @@
     "title": "Tebrikler - Lesson 3 Tamamlandı!",
     "description": "Fonksiyonlar ve listeler artık senin kontrolünde! Müthiş ilerleme!",
     "duration": 40,
-    "thumbnail": "/videos/thumbnails/lesson-3-congratulations.jpg",
     "triggers": {
       "lessonComplete": true,
       "manualOnly": false
