@@ -1,0 +1,209 @@
+[
+  {
+    "id": "intro_lesson-1",
+    "lessonId": "lesson-1",
+    "type": "intro",
+    "title": "Python Temel Kavramları - Giriş",
+    "description": "Python dünyasına hoş geldiniz! Bu videoda değişkenler, print komutu ve temel kavramları öğreneceksiniz.",
+    "duration": 180,
+    "subtitles": [
+      {
+        "language": "tr",
+        "url": "/videos/subtitles/intro_lesson-1.tr.vtt"
+      }
+    ],
+    "triggers": {
+      "lessonStart": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "help_lesson-1",
+    "lessonId": "lesson-1",
+    "type": "help",
+    "title": "Python Temel Kavramları - Yardım",
+    "description": "Python temel kavramlarında zorlanıyor musunuz? Bu yardım videosunda örneklerle açıklayalım.",
+    "duration": 120,
+    "subtitles": [
+      {
+        "language": "tr",
+        "url": "/videos/subtitles/help_lesson-1.tr.vtt"
+      }
+    ],
+    "triggers": {
+      "failedAttempts": 3,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "explanation_lesson-1_step-1-1",
+    "lessonId": "lesson-1",
+    "stepId": "step-1-1",
+    "type": "explanation",
+    "title": "İlk Python Programın",
+    "description": "Print komutu ile nasıl ekrana yazı yazdırırız, örneklerle öğrenelim.",
+    "duration": 90,
+    "triggers": {
+      "lessonStart": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "explanation_lesson-1_step-1-2",
+    "lessonId": "lesson-1",
+    "stepId": "step-1-2",
+    "type": "explanation",
+    "title": "Değişkenler Nasıl Çalışır",
+    "description": "Python'da değişken oluşturma, veri türleri ve değişken kullanımı.",
+    "duration": 150,
+    "triggers": {
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "intro_lesson-2",
+    "lessonId": "lesson-2",
+    "type": "intro",
+    "title": "Karar Verme ve Döngüler - Giriş",
+    "description": "Programların karar vermesini ve tekrar etmesini öğrenelim!",
+    "duration": 200,
+    "subtitles": [
+      {
+        "language": "tr",
+        "url": "/videos/subtitles/intro_lesson-2.tr.vtt"
+      }
+    ],
+    "triggers": {
+      "lessonStart": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "help_lesson-2",
+    "lessonId": "lesson-2",
+    "type": "help",
+    "title": "Karar Verme ve Döngüler - Yardım",
+    "description": "If/else ve döngülerde zorlanıyorsanız bu video size yardımcı olacak.",
+    "duration": 160,
+    "triggers": {
+      "failedAttempts": 3,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "explanation_lesson-2_step-2-1",
+    "lessonId": "lesson-2",
+    "stepId": "step-2-1",
+    "type": "explanation",
+    "title": "If/Else Karar Yapıları",
+    "description": "Python'da koşullu ifadeler nasıl yazılır, örneklerle görelim.",
+    "duration": 130,
+    "triggers": {
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "explanation_lesson-2_step-2-3",
+    "lessonId": "lesson-2",
+    "stepId": "step-2-3",
+    "type": "explanation",
+    "title": "For Döngüleri",
+    "description": "Aynı işi tekrar tekrar yapmak için for döngülerini kullanmayı öğrenelim.",
+    "duration": 140,
+    "triggers": {
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "intro_lesson-3",
+    "lessonId": "lesson-3",
+    "type": "intro",
+    "title": "Fonksiyonlar ve Listeler - Giriş",
+    "description": "Kodu organize etmek ve veri koleksiyonlarını yönetmek için fonksiyon ve listeleri öğrenelim.",
+    "duration": 220,
+    "subtitles": [
+      {
+        "language": "tr",
+        "url": "/videos/subtitles/intro_lesson-3.tr.vtt"
+      }
+    ],
+    "triggers": {
+      "lessonStart": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "help_lesson-3",
+    "lessonId": "lesson-3",
+    "type": "help",
+    "title": "Fonksiyonlar ve Listeler - Yardım",
+    "description": "Fonksiyon ve liste kavramları karmaşık geliyorsa bu video ile netleştir.",
+    "duration": 180,
+    "triggers": {
+      "failedAttempts": 3,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-1",
+    "lessonId": "lesson-1",
+    "type": "congratulations",
+    "title": "Tebrikler - Lesson 1 Tamamlandı!",
+    "description": "Python temel kavramlarını başarıyla öğrendin! Kutlama zamanı!",
+    "duration": 30,
+    "triggers": {
+      "lessonComplete": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-1_step-1-1",
+    "lessonId": "lesson-1",
+    "stepId": "step-1-1",
+    "type": "congratulations",
+    "title": "Aferin - İlk Adımı Tamamladın!",
+    "description": "İlk Python programını yazdın! Harika başlangıç!",
+    "duration": 15,
+    "triggers": {
+      "stepComplete": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-2",
+    "lessonId": "lesson-2",
+    "type": "congratulations",
+    "title": "Tebrikler - Lesson 2 Tamamlandı!",
+    "description": "Karar verme ve döngüleri öğrendin! Artık daha güçlü programlar yazabilirsin!",
+    "duration": 35,
+    "triggers": {
+      "lessonComplete": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-2_step-2-1",
+    "lessonId": "lesson-2",
+    "stepId": "step-2-1",
+    "type": "congratulations",
+    "title": "Harika - If/Else Öğrendin!",
+    "description": "Artık programların karar vermesini sağlayabiliyorsun!",
+    "duration": 20,
+    "triggers": {
+      "stepComplete": true,
+      "manualOnly": false
+    }
+  },
+  {
+    "id": "congratulations_lesson-3",
+    "lessonId": "lesson-3",
+    "type": "congratulations",
+    "title": "Tebrikler - Lesson 3 Tamamlandı!",
+    "description": "Fonksiyonlar ve listeler artık senin kontrolünde! Müthiş ilerleme!",
+    "duration": 40,
+    "triggers": {
+      "lessonComplete": true,
+      "manualOnly": false
+    }
+  }
+]

@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { usePyodide } from '$lib/pyodide';
   import ChatPanel from '$lib/ChatPanel.svelte';
+  import VideoPlayer from '$lib/VideoPlayer.svelte';
   import LessonNav from '$lib/LessonNav.svelte';
   import LessonContent from '$lib/LessonContent.svelte';
   import { goto } from '$app/navigation';
@@ -12,6 +13,7 @@
   import { LESSONS } from '$lib/lessons';
   import { attemptTracker } from '$lib/attempt-tracker';
   import ProgressDashboard from '$lib/ProgressDashboard.svelte';
+  import { useVideoManager } from '$lib/composables/useVideoManager';
   import { 
     getLessonById, 
     getStepById, 
@@ -25,6 +27,9 @@
 
   export let data: PageData;
   const K_FAIL_STREAK = 'pysk:failStreak';
+  
+  // Initialize video manager
+  const videoManager = useVideoManager();
   let shellEl: HTMLDivElement;   // dış grid
   let pageEl: HTMLDivElement;    // sağ taraftaki (editor+konsol) grid
   let editorEl: HTMLDivElement;
@@ -32,33 +37,10 @@
 
   // Sol iç grid: Video + Chat
   let leftPaneEl: HTMLDivElement;
-  let videoEl: HTMLVideoElement;
-  let isMuted = false;    // gerçek ses durumunu yansıt
 
   // === Stall guard ayarı ===
   const ENABLE_STALL_GUARD = false; // Video bitene kadar overlay kalsın
 
-async function tryAutoplayWithAudio() {
-  if (!videoEl) return;
-  try {
-    videoEl.muted = false;    // önce sesli dene
-    isMuted = false;
-    await videoEl.play();     // bazı tarayıcılarda burada NotAllowedError düşer
-  } catch {
-    // Fallback: sessiz autoplay
-    videoEl.muted = true;
-    isMuted = true;
-    await videoEl.play().catch(() => {});
-
-    // İsteğe bağlı: ilk kullanıcı jestinde otomatik sesi aç
-    window.addEventListener('pointerdown', () => {
-      if (!videoEl) return;
-      videoEl.muted = false;
-      isMuted = false;
-      videoEl.play().catch(() => {});
-    }, { once: true, passive: true });
-  }
-}
 
   let editor: any = null;
   let monacoLib: any = null;
@@ -74,6 +56,9 @@ async function tryAutoplayWithAudio() {
   
   // Chat panel reference for updates
   let chatPanelComponent: any = null;
+  
+  // Reactive video state
+  $: currentVideoState = videoManager.videoState;
 
   const pyodideReady = usePyodide();
 
@@ -157,48 +142,7 @@ print("Python öğrenmeye hazır mısın?")
 
   function endIntroScale() {
     if (!introOpen) return;
-
-    // Hedef: sol paneldeki kalıcı video (videoEl)
-    if (introBoxEl && videoEl) {
-      try {
-        const t = videoEl.getBoundingClientRect();
-        const sw = window.innerWidth;
-        const sh = window.innerHeight;
-
-        const dx = (t.left + t.width / 2) - (sw / 2);
-        const dy = (t.top  + t.height / 2) - (sh / 2);
-        const sx = t.width / sw;
-        const sy = t.height / sh;
-
-        const anim = (introBoxEl as HTMLElement).animate(
-          [
-            { transform: 'translate(0,0) scale(1)', opacity: 1 },
-            { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.98 }
-          ],
-          { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
-        );
-
-        anim.onfinish = async () => {
-          // Kaldığı yerden devam etmeyi dene
-          if (CONTINUE_IN_PANE && videoEl && introVideoEl) {
-            try {
-              videoEl.currentTime = introVideoEl.currentTime || 0;
-              // Sessizce devam et (autoplay kısıtları)
-              const wasPaused = introVideoEl.paused;
-              if (!wasPaused) {
-                (videoEl as any).muted = true;
-                await videoEl.play().catch(() => {});
-              }
-            } catch {}
-          }
-          finishIntro();
-        };
-        return;
-      } catch {
-        // Fallback: direkt bitir
-      }
-    }
-
+    // Simple finish without animation for now since we moved to VideoPlayer
     finishIntro();
   }
 
@@ -216,9 +160,7 @@ async function openIntro(opts: OpenIntroOpts = {}) {
   // Tek-sefer kontrolü (replay değilse)
   if (!ignoreStorage && storage().getItem(INTRO_LS_KEY)) return;
 
-  // Panel videosu oynuyorsa sustur/durdur (iki ses karışmasın)
-  try { videoEl?.pause(); } catch {}
-
+  // Panel video management is now handled by VideoPlayer component
   introOpen = true;
   await tick(); // DOM hazır
 
@@ -261,27 +203,6 @@ async function openIntro(opts: OpenIntroOpts = {}) {
       };
       v.addEventListener('loadedmetadata', onMeta, { once: true });
     }
-  }
-
-  // Panel videosunun boyutundan TAM ekrana büyütme animasyonu (opsiyonel)
-  if (grow && introBoxEl && videoEl) {
-    try {
-      const t  = videoEl.getBoundingClientRect();
-      const sw = window.innerWidth;
-      const sh = window.innerHeight;
-      const dx = (t.left + t.width  / 2) - (sw / 2);
-      const dy = (t.top  + t.height / 2) - (sh / 2);
-      const sx = t.width  / sw;
-      const sy = t.height / sh;
-
-      (introBoxEl as HTMLElement).animate(
-        [
-          { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.98 },
-          { transform: 'translate(0,0) scale(1)', opacity: 1 }
-        ],
-        { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
-      );
-    } catch { /* no-op */ }
   }
 }
 
@@ -372,8 +293,12 @@ function onReplay(ev: Event) {
     // Intro overlay'i girişte tetikle
     await tick();
 
-    ensureAutoplay();
     maybeRunIntro();
+    
+    // Check for lesson start video after auto-selection
+    if (currentLesson && currentStep) {
+      videoManager.checkLessonStartVideo(currentLesson, currentStep);
+    }
   });
 
   onDestroy(() => {
@@ -637,11 +562,28 @@ function onReplay(ev: Event) {
         // Auto-progress to next step/lesson if successful
         if (isSuccessful) {
           localStorage.setItem(K_FAIL_STREAK, '0');
-
           failReplayTriggeredForThisStreak = false;          // yeni bir seriye başlıyoruz
           
-          fireReplay(); 
-          await handleAutoProgression();
+          // Reset video triggers on successful completion
+          if (currentLesson && currentStep) {
+            videoManager.resetVideoTriggers(currentLesson, currentStep);
+          }
+          
+          // Show congratulations video
+          const hasCongratsVideo = await videoManager.showCongratulationsVideo(
+            currentLesson!, 
+            currentStep!, 
+            false
+          );
+          
+          if (hasCongratsVideo) {
+            // Set flag to handle auto progression after video ends
+            videoManager.setPendingAutoProgression(true);
+          } else {
+            // No video, proceed immediately
+            fireReplay();
+            await handleAutoProgression();
+          }
         }
         else
         {
@@ -649,11 +591,23 @@ function onReplay(ev: Event) {
           const s = (parseInt(localStorage.getItem(K_FAIL_STREAK) || '0', 10) || 0) + 1;
           localStorage.setItem(K_FAIL_STREAK, String(s));
 
-          // 3'e ulaşınca tetikle ve sıfırla
-          if (s >= 3) {
-            fireReplay(); // sadece event
-            //introOpen=true
-            localStorage.setItem(K_FAIL_STREAK, '0'); // yeni seri başlar
+          // Check for help video trigger at 3 failures
+          if (s >= 3 && currentLesson && currentStep) {
+            const helpVideoTriggered = await videoManager.checkHelpVideo(
+              currentLesson,
+              currentStep,
+              s
+            );
+            
+            if (helpVideoTriggered) {
+              // Reset the fail streak and clear help video shown status
+              localStorage.setItem(K_FAIL_STREAK, '0');
+              videoManager.clearHelpVideoShownStatus(currentLesson.id, currentStep.id);
+            } else {
+              // 3'e ulaşınca tetikle ve sıfırla (fallback)
+              fireReplay(); // sadece event
+              localStorage.setItem(K_FAIL_STREAK, '0'); // yeni seri başlar
+            }
           }
         }
       }
@@ -777,6 +731,17 @@ function onReplay(ev: Event) {
   function handleVideoPlay() {
     if (currentAttemptId) {
       attemptTracker.recordHelpRequest('video');
+    }
+    videoManager.handleVideoPlay();
+  }
+  
+  // Video player ended event handler
+  function handleVideoPlayerEnded(event: CustomEvent) {
+    const shouldAutoProgress = videoManager.handleVideoEnded(event);
+    if (shouldAutoProgress) {
+      setTimeout(() => {
+        handleAutoProgression();
+      }, 500);
     }
   }
 
@@ -1006,70 +971,6 @@ function onReplay(ev: Event) {
   }
 
 
-    // ---- Video kontrol durumu ---- 19:47
-  let showVideoControls = false;   // <-- bool: true iken custom kontroller görünsün
-  let isPlaying = false;
-  let showNativeControls = false;
-
-  function playVideo() {
-    if (!videoEl) return;
-    // Autoplay kısıtlarına takılmamak için muted başlat, sonra aç istersen
-    (videoEl as HTMLVideoElement).play().catch(() => {});
-  }
-  function pauseVideo() {
-    videoEl?.pause();
-  }
-  function togglePlay() {
-    if (!videoEl) return;
-    videoEl.paused ? playVideo() : pauseVideo();
-  }
-
-
- 
-
-let triedAutoOnce = false;
-let autoplayMutedFallback = false;
-let unmutedOnce = false;
-
-async function ensureAutoplay() {
-  if (!videoEl || triedAutoOnce) return;
-  triedAutoOnce = true;
-  autoplayMutedFallback = false;
-
-  try {
-    // 1) SESLİ dene
-    videoEl.muted = false;
-    videoEl.removeAttribute('muted');   // iOS için önemli
-    await videoEl.play();
-  } catch {
-    // 2) Sessiz autoplay’e düş
-    autoplayMutedFallback = true;
-    videoEl.muted = true;
-    videoEl.setAttribute('muted', '');  // iOS Safari'de şart
-    await videoEl.play().catch(() => {});
-    armUnmuteOnce();                    // ilk jestte sadece unmute et
-  }
-}
-
-// Kullanıcı ilk jestinde sadece sesi aç (play() çağırma!)
-function armUnmuteOnce() {
-  if (unmutedOnce) return;
-  const handler = () => {
-    if (!videoEl) return;
-    if (autoplayMutedFallback) {
-      videoEl.muted = false;
-      videoEl.removeAttribute('muted'); // yoksa iOS yine sessiz kalabilir
-      unmutedOnce = true;
-    }
-    window.removeEventListener('pointerdown', handler);
-    window.removeEventListener('keydown', handler);
-    videoEl?.removeEventListener('click', handler);
-  };
-  window.addEventListener('pointerdown', handler, { once: true, passive: true });
-  window.addEventListener('keydown', handler, { once: true, passive: true });
-  // iOS’ta native UI window event’i tüketirse garanti olsun diye:
-  videoEl?.addEventListener('click', handler, { once: true, passive: true });
-}
 
 // --- Replay test ayarları --- 20:51
 const REPLAY_ON_SUCCESS =
@@ -1257,63 +1158,18 @@ function tryForceUnmute(v: HTMLVideoElement) {
             linear-gradient(0deg,  rgba(0,0,0,.06),       rgba(0,0,0,0) 42%) bottom/100% 50% no-repeat;"
         ></div>
         <div class="relative z-[1] p-2 h-full">
-          <!-- Video başlık ve custom kontroller 
-          <video
-            bind:this={videoEl}
-            controls
-            playsinline
-            class="w-full h-full object-contain bg-black rounded-[0.5rem]"
-            aria-label="PyKid tanıtım videosu"
+          <VideoPlayer
+            lessonId={$currentVideoState.currentVideoLessonId}
+            stepId={$currentVideoState.currentVideoStepId}
+            videoType={$currentVideoState.currentVideoType}
+            autoplay={true}
+            autoUnmute={true}
+            requireUserInteraction={$currentVideoState.currentVideoType === 'explanation'}
+            showControls={true}
+            className="w-full h-full rounded-[0.5rem]"
             on:play={handleVideoPlay}
-          >
-            <source src="/videos/example.mp4" type="video/mp4" />
-            <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
-            Tarayıcınız video etiketini desteklemiyor.
-          </video>-->
-          <video
-            bind:this={videoEl}
-            controls={showNativeControls}  
-            playsinline
-            autoplay
-            preload="auto"
-            class="w-full h-full object-contain bg-black rounded-[0.5rem]"
-            aria-label="PyKid tanıtım videosu"
-            on:loadedmetadata={ensureAutoplay}
-            on:play={() => { handleVideoPlay(); isPlaying = true; }}
-            on:pause={() => { isPlaying = false; }}
-            on:ended={() => { isPlaying = false; }}
-            on:click={() => { if (!showNativeControls) togglePlay(); }}  
-          >
-            <source src="/videos/example.mp4" type="video/mp4" />
-            <track kind="captions" src="/videos/example.tr.vtt" srclang="tr" label="Türkçe" default />
-            Tarayıcınız video etiketini desteklemiyor.
-          </video>
-
-          {#if showVideoControls}
-            <div
-              class="absolute bottom-3 left-3 z-[2] flex items-center gap-2 pointer-events-auto"
-            >
-              <button
-                class="px-3 py-1.5 rounded-md bg-[var(--accent)] text-white border-0 shadow
-                       hover:brightness-110 active:scale-[.98]"
-                on:click={togglePlay}
-                aria-label={isPlaying ? 'Durdur' : 'Oynat'}
-                title={isPlaying ? 'Durdur' : 'Oynat'}
-              >
-                {isPlaying ? '⏸ Durdur' : '▶ Oynat'}
-              </button>
-
-              <button
-                class="px-3 py-1.5 rounded-md border border-[var(--line)] bg-white/70 hover:bg-white"
-                on:click={() => { if (videoEl) { videoEl.currentTime = 0; playVideo(); } }}
-                title="Baştan Oynat"
-              >
-                ⟲ Baştan
-              </button>
-            </div>
-          {/if}
-
-
+            on:ended={handleVideoPlayerEnded}
+          />
         </div>
       </div>
 
@@ -1611,7 +1467,7 @@ function tryForceUnmute(v: HTMLVideoElement) {
   class="px-3 py-1.5 rounded-md border border-[var(--line)] bg-white/70 hover:bg-white"
   title="Tanıtımı tekrar izle"
   on:click={() => {
-    const start = (videoEl?.currentTime ?? 0);
+    const start = 0; // Start from beginning since we no longer have direct video element reference
     window.dispatchEvent(new CustomEvent('pysk:intro:replay', { detail: { startAt: start, unmute: false } }));
   }}
 >

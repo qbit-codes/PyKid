@@ -8,6 +8,9 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+
+	// Global analytics function
+	function gtag(...args: any[]): void;
 }
 
 export {};

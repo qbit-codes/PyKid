@@ -1,0 +1,274 @@
+// src/lib/composables/useVideoManager.ts
+// Video management composable for PyKid
+
+import { writable, derived, type Writable } from 'svelte/store';
+import { videoStorage, VideoTriggerManager, type VideoMetadata } from '$lib/video-storage';
+import type { Lesson, LessonStep } from '$lib/lessons';
+
+export interface VideoState {
+  currentVideoLessonId: string;
+  currentVideoStepId: string | undefined;
+  currentVideoType: VideoMetadata['type'] | undefined;
+  isPlaying: boolean;
+  pendingAutoProgression: boolean;
+}
+
+export function useVideoManager() {
+  // Video state stores
+  const videoState: Writable<VideoState> = writable({
+    currentVideoLessonId: '',
+    currentVideoStepId: undefined,
+    currentVideoType: undefined,
+    isPlaying: false,
+    pendingAutoProgression: false
+  });
+
+  // Video trigger functions
+  async function checkLessonStartVideo(lesson: Lesson, step: LessonStep) {
+    console.log(`Lesson ID: ${lesson.id}`)
+    console.log(`Step ID: ${step.id}`)
+    if (!lesson && !step) return;
+    
+    // Check if lesson start video has already been shown
+    //if (VideoTriggerManager.hasShownLessonStartVideo(lesson.id)) {
+    //  return;
+    //}
+    
+    try {
+      // Get generic explanation video
+      const videoMetadata = await videoStorage.getGenericVideo('explanation');
+      console.log(`video metadata: ${videoMetadata?.type} ${videoMetadata?.id}`)
+      
+      if (videoMetadata && videoStorage.shouldTriggerVideo(videoMetadata, { isLessonStart: true })) {
+        console.log('video triggered')
+        // Mark as shown to prevent duplicate triggers
+        VideoTriggerManager.markLessonStartVideoShown(lesson.id);
+        
+        // Update video state
+        videoState.update(state => ({
+          ...state,
+          currentVideoLessonId: lesson.id,
+          currentVideoStepId: step.id,
+          currentVideoType: 'explanation'
+        }));
+        console.log(videoState) 
+        return true; // Video was triggered
+      }
+    } catch (error) {
+      console.error('Error loading lesson start video:', error);
+    }
+    
+    return false;
+  }
+
+  async function checkHelpVideo(lesson: Lesson, step: LessonStep, failedAttempts: number) {
+    console.log('🆘 checkHelpVideo called:', { 
+      lessonId: lesson?.id, 
+      stepId: step?.id, 
+      failedAttempts 
+    });
+    
+    if (!lesson || !step) {
+      console.log('❌ Missing lesson or step data');
+      return false;
+    }
+    
+    // Check if help video has already been shown for this streak
+    const hasShownBefore = VideoTriggerManager.hasShownHelpVideoForStreak(lesson.id, step.id);
+    console.log('🔍 Has shown help video before for this streak:', hasShownBefore);
+    //if (hasShownBefore) {
+    //  console.log('⏭️ Help video already shown for this streak, skipping');
+    //  return false;
+    //}
+    
+    try {
+      console.log('📥 Attempting to get generic help video...');
+      // Get generic help video
+      const videoMetadata = await videoStorage.getGenericVideo('help');
+      console.log('📹 Help video metadata:', videoMetadata);
+      
+      if (videoMetadata) {
+        const shouldTrigger = videoStorage.shouldTriggerVideo(videoMetadata, { 
+          failedAttemptCount: failedAttempts 
+        });
+        console.log('🎯 Should trigger help video:', shouldTrigger, 'for failedAttempts:', failedAttempts);
+        
+        if (shouldTrigger) {
+          console.log('✅ Triggering help video!');
+          // Mark as shown for this streak
+          VideoTriggerManager.markHelpVideoShown(lesson.id, step.id);
+          console.log('📝 Marked help video as shown for streak');
+          
+          // Update video state
+          videoState.update(state => {
+            const newState = {
+              ...state,
+              currentVideoLessonId: lesson.id,
+              currentVideoStepId: step.id,
+              currentVideoType: 'help' as const
+            };
+            console.log('🔄 Updated video state:', newState);
+            return newState;
+          });
+          
+          console.log('🎉 Help video triggered successfully!');
+          return true; // Video was triggered
+        } else {
+          console.log('🚫 Video should not trigger based on conditions');
+        }
+      } else {
+        console.log('❌ No help video metadata found');
+      }
+    } catch (error) {
+      console.error('💥 Error loading help video:', error);
+    }
+    
+    console.log('❌ Help video was not triggered');
+    return false;
+  }
+
+  // Show congratulations video after successful step/lesson completion
+  async function showCongratulationsVideo(
+    lesson: Lesson, 
+    step?: LessonStep, 
+    isLessonComplete: boolean = false
+  ): Promise<boolean> {
+    if (!lesson) return false;
+    
+    try {
+      // Determine video type based on completion type
+      const videoType: VideoMetadata['type'] = 'congratulations';
+      const videoMetadata = await videoStorage.getVideoForLesson(
+        lesson.id, 
+        isLessonComplete ? undefined : step?.id, 
+        videoType
+      );
+      
+      if (videoMetadata && videoStorage.shouldTriggerVideo(videoMetadata, { 
+        isStepComplete: !isLessonComplete && !!step,
+        isLessonComplete: isLessonComplete
+      })) {
+        
+        // Update video state
+        videoState.update(state => ({
+          ...state,
+          currentVideoLessonId: lesson.id,
+          currentVideoStepId: isLessonComplete ? undefined : step?.id,
+          currentVideoType: 'congratulations'
+        }));
+        
+        return true; // Video was shown
+      }
+      
+      return false; // No video available or shouldn't trigger
+    } catch (error) {
+      console.error('Error loading congratulations video:', error);
+      return false;
+    }
+  }
+
+  // Reset failed attempts and video triggers on successful completion
+  function resetVideoTriggers(lesson: Lesson, step: LessonStep) {
+    if (lesson && step) {
+      VideoTriggerManager.resetFailedAttempts(lesson.id, step.id);
+    }
+  }
+
+  // Clear help video shown status so it can be triggered again
+  function clearHelpVideoShownStatus(lessonId: string, stepId: string) {
+    VideoTriggerManager.clearHelpVideoShownStatus(lessonId, stepId);
+  }
+
+  // Handle video player events
+  function handleVideoPlay() {
+    videoState.update(state => ({
+      ...state,
+      isPlaying: true
+    }));
+  }
+
+  function handleVideoEnded(event: CustomEvent<{ videoId: string; metadata: VideoMetadata }>) {
+    let shouldAutoProgress = false;
+    
+    videoState.update(state => {
+      const updated = {
+        ...state,
+        isPlaying: false
+      };
+      
+      // Handle pending auto progression for congratulations videos
+      if (state.pendingAutoProgression && event.detail.metadata.type === 'congratulations') {
+        updated.pendingAutoProgression = false;
+        shouldAutoProgress = true;
+      }
+      
+      return updated;
+    });
+
+    return shouldAutoProgress;
+  }
+
+  // Set pending auto progression flag
+  function setPendingAutoProgression(pending: boolean) {
+    videoState.update(state => ({
+      ...state,
+      pendingAutoProgression: pending
+    }));
+  }
+
+  // Update video when lesson/step changes
+  async function updateVideoForLesson(lesson: Lesson | null, step: LessonStep | null) {
+    if (lesson && step) {
+      // Try to load generic explanation video
+      try {
+        const explanationVideo = await videoStorage.getGenericVideo('explanation');
+        if (explanationVideo) {
+          videoState.update(state => ({
+            ...state,
+            currentVideoLessonId: lesson.id,
+            currentVideoStepId: step.id,
+            currentVideoType: 'explanation'
+          }));
+          return;
+        }
+      } catch (error) {
+        // Silent fallback to intro video
+      }
+      
+      // Fallback to intro video if no explanation video exists
+      try {
+        const introVideo = await videoStorage.getVideoForLesson(lesson.id, undefined, 'intro');
+        if (introVideo) {
+          videoState.update(state => ({
+            ...state,
+            currentVideoLessonId: lesson.id,
+            currentVideoStepId: undefined,
+            currentVideoType: 'intro'
+          }));
+        }
+      } catch (error) {
+        // No videos available
+      }
+    }
+  }
+
+  return {
+    // Stores
+    videoState,
+    
+    // Video trigger functions
+    checkLessonStartVideo,
+    checkHelpVideo,
+    showCongratulationsVideo,
+    resetVideoTriggers,
+    
+    // Event handlers
+    handleVideoPlay,
+    handleVideoEnded,
+    
+    // State management
+    setPendingAutoProgression,
+    updateVideoForLesson,
+    clearHelpVideoShownStatus
+  };
+}

@@ -171,6 +171,32 @@
       .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
       .replace(/\n/g, '<br>');
   }
+
+  // Video event handlers
+  function handleVideoPlay(detail: { videoId: string; metadata: any }) {
+    console.log('Video started playing:', detail.videoId);
+    // Track video play event for analytics
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'video_play', {
+        video_id: detail.videoId,
+        lesson_id: lesson?.id,
+        step_id: step?.id
+      });
+    }
+  }
+
+  function handleVideoWatchTime(detail: { videoId: string; watchTime: number }) {
+    console.log('Video watch time tracked:', detail.videoId, detail.watchTime);
+    // Track video engagement
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'video_engagement', {
+        video_id: detail.videoId,
+        watch_time: Math.round(detail.watchTime / 1000), // Convert to seconds
+        lesson_id: lesson?.id,
+        step_id: step?.id
+      });
+    }
+  }
 </script>
 
 <style>
@@ -455,6 +481,46 @@
       transform: translateY(0);
     }
   }
+
+  /* Video Section */
+  .video-section {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border: 2px solid #2563eb;
+    border-radius: 12px;
+    margin: 1.5rem 0;
+    overflow: hidden;
+    box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3), 0 0 20px rgba(59, 130, 246, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .video-section:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 30px rgba(59, 130, 246, 0.4), 0 0 25px rgba(59, 130, 246, 0.15);
+  }
+
+  .video-header {
+    background: rgba(0, 0, 0, 0.2);
+    color: white;
+    padding: 1rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    backdrop-filter: blur(10px);
+  }
+
+  .video-content {
+    height: 350px;
+    background: #000;
+    position: relative;
+    overflow: hidden;
+  }
+
+  :global(.lesson-video-player) {
+    height: 100%;
+    border-radius: 0;
+  }
 </style>
 
 <div class="lesson-content">
@@ -507,6 +573,7 @@
         ← Derslere Dön
       </button>
     </div>
+
 
     <!-- Step content -->
     <div class="step-content">
@@ -585,18 +652,6 @@
       </div>
     {/if}
 
-    <!-- Video section placeholder -->
-    {#if step.videoUrl}
-      <div class="code-example">
-        <div class="code-header">
-          🎥 Video Açıklaması
-        </div>
-        <div class="exercise-content">
-          <p>Bu konuyla ilgili video açıklaması yakında eklenecek!</p>
-          <small class="text-gray-500">Video URL: {step.videoUrl}</small>
-        </div>
-      </div>
-    {/if}
 
   {:else}
     <div class="empty-state">
