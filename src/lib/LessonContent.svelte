@@ -171,6 +171,32 @@
       .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
       .replace(/\n/g, '<br>');
   }
+
+  // Video event handlers
+  function handleVideoPlay(detail: { videoId: string; metadata: any }) {
+    console.log('Video started playing:', detail.videoId);
+    // Track video play event for analytics
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'video_play', {
+        video_id: detail.videoId,
+        lesson_id: lesson?.id,
+        step_id: step?.id
+      });
+    }
+  }
+
+  function handleVideoWatchTime(detail: { videoId: string; watchTime: number }) {
+    console.log('Video watch time tracked:', detail.videoId, detail.watchTime);
+    // Track video engagement
+    if (typeof gtag !== 'undefined') {
+      gtag('event', 'video_engagement', {
+        video_id: detail.videoId,
+        watch_time: Math.round(detail.watchTime / 1000), // Convert to seconds
+        lesson_id: lesson?.id,
+        step_id: step?.id
+      });
+    }
+  }
 </script>
 
 <style>
@@ -455,6 +481,35 @@
       transform: translateY(0);
     }
   }
+
+  /* Video Section */
+  .video-section {
+    background: linear-gradient(135deg, #f3f4f6, #e5e7eb);
+    border: 2px solid #d1d5db;
+    border-radius: 10px;
+    margin: 1.5rem 0;
+    overflow: hidden;
+  }
+
+  .video-header {
+    background: #6b7280;
+    color: white;
+    padding: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .video-content {
+    height: 300px;
+    background: #000;
+  }
+
+  :global(.lesson-video-player) {
+    height: 100%;
+    border-radius: 0;
+  }
 </style>
 
 <div class="lesson-content">
@@ -585,15 +640,25 @@
       </div>
     {/if}
 
-    <!-- Video section placeholder -->
-    {#if step.videoUrl}
-      <div class="code-example">
-        <div class="code-header">
+    <!-- Video section -->
+    {#if step.videoUrl || (lesson && step)}
+      <div class="video-section">
+        <div class="video-header">
           🎥 Video Açıklaması
         </div>
-        <div class="exercise-content">
-          <p>Bu konuyla ilgili video açıklaması yakında eklenecek!</p>
-          <small class="text-gray-500">Video URL: {step.videoUrl}</small>
+        <div class="video-content">
+          {#await import('$lib/VideoPlayer.svelte') then { default: VideoPlayer }}
+            <VideoPlayer
+              lessonId={lesson?.id || ''}
+              stepId={step?.id}
+              videoType="explanation"
+              autoplay={false}
+              showControls={true}
+              className="lesson-video-player"
+              on:play={(e) => handleVideoPlay(e.detail)}
+              on:watchTime={(e) => handleVideoWatchTime(e.detail)}
+            />
+          {/await}
         </div>
       </div>
     {/if}

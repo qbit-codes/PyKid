@@ -11,6 +11,7 @@
   import type { Lesson, LessonStep } from '$lib/lessons';
   import { LESSONS } from '$lib/lessons';
   import { attemptTracker } from '$lib/attempt-tracker';
+  import { videoStorage, VideoTriggerManager } from '$lib/video-storage';
   import ProgressDashboard from '$lib/ProgressDashboard.svelte';
   import { 
     getLessonById, 
@@ -694,6 +695,11 @@ function onReplay(ev: Event) {
 
           failReplayTriggeredForThisStreak = false;          // yeni bir seriye başlıyoruz
           
+          // Reset video triggers on successful completion
+          if (currentLesson && currentStep) {
+            resetVideoTriggers(currentLesson, currentStep);
+          }
+          
           fireReplay(); 
           await handleAutoProgression();
         }
@@ -702,11 +708,20 @@ function onReplay(ev: Event) {
           // Başarısızlık: ardışık fail say
           const s = (parseInt(localStorage.getItem(K_FAIL_STREAK) || '0', 10) || 0) + 1;
           localStorage.setItem(K_FAIL_STREAK, String(s));
+          
+          // Video trigger manager ile failed attempt sayısını artır
+          if (currentLesson && currentStep) {
+            VideoTriggerManager.incrementFailedAttempts(currentLesson.id, currentStep.id);
+          }
 
           // 3'e ulaşınca tetikle ve sıfırla
           if (s >= 3) {
+            // Check for help video trigger
+            if (currentLesson && currentStep) {
+              checkHelpVideo(currentLesson, currentStep, s);
+            }
+            
             fireReplay(); // sadece event
-            //introOpen=true
             localStorage.setItem(K_FAIL_STREAK, '0'); // yeni seri başlar
           }
         }
@@ -857,6 +872,9 @@ function onReplay(ev: Event) {
     if (chatPanelComponent?.updateForLessonChange) {
       chatPanelComponent.updateForLessonChange();
     }
+    
+    // Check for lesson start video trigger
+    checkLessonStartVideo(lesson);
   }
 
   function handleStepSelect(event: CustomEvent<{ lesson: Lesson; step: LessonStep }>) {
@@ -1155,6 +1173,89 @@ function tryForceUnmute(v: HTMLVideoElement) {
     // Bazı motorlarda unmute sonrası play tekrar gerekebilir:
     v.play().catch(() => {});
   } catch {}
+}
+
+// Video trigger functions
+async function checkLessonStartVideo(lesson: Lesson) {
+  if (!lesson) return;
+  
+  // Check if lesson start video has already been shown
+  if (VideoTriggerManager.hasShownLessonStartVideo(lesson.id)) {
+    return;
+  }
+  
+  try {
+    // Get intro video for this lesson
+    const videoMetadata = await videoStorage.getVideoForLesson(lesson.id, undefined, 'intro');
+    
+    if (videoMetadata && videoStorage.shouldTriggerVideo(videoMetadata, { isLessonStart: true })) {
+      // Mark as shown to prevent duplicate triggers
+      VideoTriggerManager.markLessonStartVideoShown(lesson.id);
+      
+      // Update main video player to show intro
+      if (videoEl) {
+        const videoUrl = videoStorage.getVideoUrl(videoMetadata.id);
+        videoEl.src = videoUrl;
+        
+        // Add visual indicator that this is a lesson intro
+        output += `\n🎬 ${lesson.title} dersine hoş geldin! Tanıtım videosu oynatılıyor...\n\n`;
+        
+        // Auto-play intro video
+        try {
+          await videoEl.play();
+          handleVideoPlay();
+        } catch (error) {
+          console.log('Auto-play prevented, user interaction required');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error loading lesson start video:', error);
+  }
+}
+
+async function checkHelpVideo(lesson: Lesson, step: LessonStep, failedAttempts: number) {
+  if (!lesson || !step) return;
+  
+  // Check if help video has already been shown for this streak
+  if (VideoTriggerManager.hasShownHelpVideoForStreak(lesson.id, step.id)) {
+    return;
+  }
+  
+  try {
+    // Get help video for this lesson
+    const videoMetadata = await videoStorage.getVideoForLesson(lesson.id, step.id, 'help');
+    
+    if (videoMetadata && videoStorage.shouldTriggerVideo(videoMetadata, { 
+      failedAttemptCount: failedAttempts 
+    })) {
+      // Mark as shown for this streak
+      VideoTriggerManager.markHelpVideoShown(lesson.id, step.id);
+      
+      // Update main video player to show help video and play directly
+      if (videoEl) {
+        const videoUrl = videoStorage.getVideoUrl(videoMetadata.id);
+        videoEl.src = videoUrl;
+        
+        // Play help video directly since it contains interactive "do you need help?" content
+        try {
+          await videoEl.play();
+          handleVideoPlay(); // Track video interaction
+        } catch (error) {
+          console.log('Auto-play prevented, user interaction required');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error loading help video:', error);
+  }
+}
+
+// Reset failed attempts and video triggers on successful completion
+function resetVideoTriggers(lesson: Lesson, step: LessonStep) {
+  if (lesson && step) {
+    VideoTriggerManager.resetFailedAttempts(lesson.id, step.id);
+  }
 }
 
 
