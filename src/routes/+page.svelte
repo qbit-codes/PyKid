@@ -205,61 +205,7 @@ print("Python öğrenmeye hazır mısın?")
   //************** Intro Event Handlers **************//
   // ---- Event ile tekrar oynatma: panelden TAM EKRANA büyüt, bitince panele küçült ----
 type OpenIntroOpts = { grow?: boolean; startAt?: number; unmute?: boolean; ignoreStorage?: boolean };
-/*
-async function openIntro(opts: OpenIntroOpts = {}) {
-  // grow: panelden tam ekrana büyüt
-  // startAt: saniye cinsinden başlat
-  // unmute: sesi açmayı dener (tarayıcı gesture isteyebilir)
-  // ignoreStorage: true ise localStorage "bir kere oynatıldı" kontrolünü yok say
-  const { grow = true, startAt = 0, unmute = false, ignoreStorage = true } = opts;
 
-  // İlk girişteki tek-sefer kontrolünü bypass edelim (replay için)
-  if (!ignoreStorage && storage().getItem(INTRO_LS_KEY)) return;
-
-  introOpen = true;
-  await tick(); // DOM hazır olsun
-
-  try {
-    if (introVideoEl) {
-      introVideoEl.currentTime = Math.max(0, startAt);
-      introVideoEl.muted = !unmute;          // autoplay gereği varsayılan sessiz
-      (introVideoEl as any).playsInline = true;
-    }
-  } catch {}
-
-  // Panel videosunun boyutundan TAM ekrana büyüterek başla
-  if (grow && introBoxEl && videoEl) {
-    try {
-      const t = videoEl.getBoundingClientRect();
-      const sw = window.innerWidth;
-      const sh = window.innerHeight;
-      const dx = (t.left + t.width / 2) - (sw / 2);
-      const dy = (t.top  + t.height / 2) - (sh / 2);
-      const sx = t.width / sw;
-      const sy = t.height / sh;
-
-      (introBoxEl as HTMLElement).animate(
-        [
-          { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.98 },
-          { transform: 'translate(0,0) scale(1)', opacity: 1 }
-        ],
-        { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }
-      );
-    } catch {  }
-  }
-
-  // Videoyu başlat
-  try { await introVideoEl?.play(); } catch { }
-
-  // Sonuna kadar oynat, ama takılırsa emniyet kemeri dursun
-  //armStallGuard();
-  //introVideoEl?.addEventListener('timeupdate', armStallGuard);
-
-  if (ENABLE_STALL_GUARD) {
-  armStallGuard();
-  introVideoEl?.addEventListener('timeupdate', armStallGuard);
-}
-}*/
 async function openIntro(opts: OpenIntroOpts = {}) {
   // grow: panelden tam ekrana büyüt
   // startAt: saniye cinsinden başlangıç

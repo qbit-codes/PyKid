@@ -139,7 +139,7 @@
   .stat-value {
     font-size: 2rem;
     font-weight: bold;
-    color: #1e40af;
+    color: #567af0;
   }
   
   .stat-label {
