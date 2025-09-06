@@ -1058,6 +1058,19 @@ function tryForceUnmute(v: HTMLVideoElement) {
     box-shadow: none !important;
   }
 
+  :global(.gutter){
+  position: relative;
+  border-radius: 999px;
+  background: transparent;            /* beyaz “iz”  rgba(255,255,255,.35) */
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.55),
+    0 2px 10px rgba(0,0,0,.10);
+  backdrop-filter: saturate(150%) blur(6px);
+  -webkit-backdrop-filter: saturate(150%) blur(6px);
+  transition: box-shadow .15s, filter .15s,  .15s;
+  outline: none;
+  }
+
   /* Reduced motion saygısı (opsiyonel ama iyi pratik) */
   @media (prefers-reduced-motion: reduce) {
     :global(*) {
@@ -1067,6 +1080,7 @@ function tryForceUnmute(v: HTMLVideoElement) {
       scroll-behavior: auto !important;
     }
   }
+  
 </style>
 
 <!-- Keyboard event handler -->
@@ -1220,7 +1234,7 @@ function tryForceUnmute(v: HTMLVideoElement) {
 
     <!-- GUTTER (Dikey: Sol sütun ↔ IDE) -->
     <div
-      class="w-[8px] shrink-0 z-10 rounded-full
+      class="gutter w-[8px] shrink-0 z-10 rounded-full
              cursor-col-resize focus:outline-[3px] focus:outline-[var(--accent)] focus:outline-offset-2"
       role="slider"
       aria-orientation="vertical"
